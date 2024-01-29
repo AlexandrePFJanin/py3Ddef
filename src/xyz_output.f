@@ -19,7 +19,6 @@ C	the file OUTPUT_VECTOR.F and re-formatted in a vector format (e.g.
 C   as required by plotting programs such as MATLAB); this re-formatting
 C   is of course optional.
 C******************************************************************************
-	  INCLUDE 'units.inc'			
 
 	  INTEGER*4 NUM_Ds,NPLANE
 
@@ -51,7 +50,6 @@ C  desired.
 C
 C  Close all files.
 C****************************************************************************
-	  include 'units.inc'
 	  include 'sizes.inc'
 	  
 	  integer*4 NPLANE
@@ -104,7 +102,6 @@ C of the displacement gradient tensor; use of 'displacement gradients'
 C would be incorrect (the key word must start with a 'g') and result in
 C an output file containing displacements.
 C****************************************************************************
-        include 'units.inc'
 		  
 	logical o_elem,o_stress,o_strain,o_dgrad,o_rbr,
      &  o_orient,o_disp,o_inv,xyz_out,o_fail,o_proj
@@ -170,8 +167,6 @@ C                    direction cosines for each plane.
 C  Remember that if you change the format of these files, you must also
 C  change the routines in OUTPUT_VECTOR.f since they must read these files.
 C******************************************************************************
-
-	  include 'units.inc'
 
 	  logical o_elem,o_stress,o_strain,o_dgrad,o_rbr,
      &  o_orient,o_disp,o_inv,xyz_out,o_fail,o_proj
@@ -247,7 +242,6 @@ C directions.
 C********************************************************************
 
       INCLUDE 'sizes.inc'
-      INCLUDE 'units.inc'			
       REAL*4 XMATRIX
       COMMON/SOLN/XMATRIX(MAX3_ELEM,MAX3_ELEM+1)
       REAL*4 UG2P,SG2P
@@ -332,7 +326,6 @@ c c.meertens 24feb93
 C***************************************************************************
 
 	  include 'sizes.inc'
-	  include 'units.inc'
 	  integer*4 NPLANE
 
 C  Added by A.JANIN

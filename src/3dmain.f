@@ -143,10 +143,7 @@ C  ** Added declaration to subroutine failure_planes
 C       real*4 rake1,rake2
 C****************************************************************************
 C      include array dimensions
-		INCLUDE 'sizes.inc'
-C      Include file for unit numbers
-		INCLUDE 'units.inc'
-		
+		INCLUDE 'sizes.inc'		
 
 C Material constants
 C      Lame parameter (lambda)
@@ -745,7 +742,6 @@ C******************************************************************************
       IMPLICIT REAL*8 (A-H,O-Z)
 
       INCLUDE 'sizes.inc'
-      INCLUDE 'units.inc'
 	  
 C     Lines added by MDB 11/02/2001 to run in LINUX
 C      REAL*8 XNP,YNP,ZNP,AL1,AL2,AW1,AW2
@@ -869,7 +865,6 @@ C******************************************************************************
 C Subroutine to solve for the unknown relative displacement discontinuities.
 C******************************************************************************
       INCLUDE 'sizes.inc'
-      INCLUDE 'units.inc'
 
       INTEGER*4 FIXED
 	  
@@ -1101,7 +1096,6 @@ C        be changed to reflect the reduced size of the matrix such that
 C        the returned XMATRIX(NUME,NUME) contains no zero rows.
 C******************************************************************************
       INCLUDE 'sizes.inc'
-      INCLUDE 'units.inc'
 
       REAL*4 XO,YO,ZO,C,S,DIP,CDIP,SDIP,BWX1,BWX2
       INTEGER*4 NBX1,NBX2
@@ -1598,7 +1592,6 @@ C******************************************************************************
 C Subroutine to calculate deformation at a point X,Y,Z in global coordinates
 C******************************************************************************
       INCLUDE 'sizes.inc'
-      INCLUDE 'units.inc'
 	  
       INTEGER*4 	NPLANE
       REAL*8		X,Y
@@ -1902,7 +1895,6 @@ C
 *	
 *********************************************************************
 *
-      include 'units.inc'
       include 'sizes.inc'
 	  
 C  ** Added declaration of tmax,tmaxo(2),tmaxa as real*4 on Aug. 29,2000
@@ -1969,7 +1961,6 @@ C	  and volume change).  See Ramsay, 1967, p.288.
 *
 ********************************************************************************
 *
- 	  include 'units.inc'
 	  real*4 eval(3)
 	  real*4 ex,ey,ez,VX(3),VY(3),VZ(3),TX,PX,TY,PY,TZ,PZ
 
