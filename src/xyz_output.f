@@ -291,11 +291,11 @@ C      - center of sub-element IP,JP in in-plane coords
 		 inlout_elements(NP,1) = X
 		 inlout_elements(NP,2) = Y
 		 inlout_elements(NP,3) = Z
-		 inlout_elements(NP,4) = XMATRIX(1,NUM_Ds)
-		 inlout_elements(NP,5) = XMATRIX(2,NUM_Ds)
-		 inlout_elements(NP,6) = XMATRIX(3,NUM_Ds)
+		 inlout_elements(NP,4) = XMATRIX(1+IBC,NUM_Ds)
+		 inlout_elements(NP,5) = XMATRIX(2+IBC,NUM_Ds)
+		 inlout_elements(NP,6) = XMATRIX(3+IBC,NUM_Ds)
 
- 45	  IBC=IBC+3
+ 45	     IBC=IBC+3
 	  
 	  return
 	  end
