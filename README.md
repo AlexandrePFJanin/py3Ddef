@@ -32,6 +32,8 @@ python setup.py install --user --prefix=
 ### Boundary Condition types by Components
 
 |Code|Strike|Dip|Normal|
-| 1 | u_s^- | u_d^- | u_sn^- |
 
 
+| Code | Strike | Dip | Normal |
+| :---: | :---: | :---: | :---: |
+| 1 | $$u_{s}^{-}$$ | $$u_{d}^{-}$$ | $$u_{n}^{-}$$ |
