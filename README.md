@@ -29,3 +29,9 @@ On some OS, it is sometimes better to run :
 python setup.py install --user --prefix=
 ```
 
+### Boundary Condition types by Components
+
+|Code|Strike|Dip|Normal|
+| 1 | u_s^- | u_d^- | u_sn^- |
+
+
