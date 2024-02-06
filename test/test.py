@@ -62,9 +62,9 @@ dip    = np.array([90],dtype=np.float64)    # in km
 # --- Dislocations deformation
 
 kode = np.array([10],dtype=np.int32)        # See the doc of 3D-def (Gomberg and Ellis, 1993, User manual)
-ss   = np.array([0],dtype=np.float64)       # Strike slip (in meters)
-ds   = np.array([0],dtype=np.float64)       # Dip slip (in meters)
-ts   = np.array([1],dtype=np.float64)       # Tensile slip (in meters)
+ss   = np.array([0],dtype=np.float64)       # Strike slip (in centimeters)
+ds   = np.array([0],dtype=np.float64)       # Dip slip (in centimeters)
+ts   = np.array([100],dtype=np.float64)     # Tensile slip (in centimeters)
 
 
 # --- Computation of 3D deformation
@@ -75,9 +75,9 @@ u,s,d,o,f,e,g = py3Ddef.compute3ddef(x,y,z,\
                          nu,E,mu)
 
 
-ux = u[:,0]
-uy = u[:,1]
-uz = u[:,2]
+ux = u[:,0]/100	# conversion from cm to m
+uy = u[:,1]/100
+uz = u[:,2]/100
 
 # --- Figure
 
