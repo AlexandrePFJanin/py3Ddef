@@ -275,6 +275,7 @@ C       ------- SUBROUTINE START ---------
 
 		PRINT*, ''
 		PRINT*, ' ------ COMPUTE3DDEF ------------------------'
+		print*, ''
 		NPLANE = ndis
 		V = input_V
 		E = input_E
@@ -294,9 +295,9 @@ C       ------- SUBROUTINE START ---------
 			BFLAG = 'N'
 		endif
 
-		WRITE(*,'(/,A)') ' *  MATERIAL PROPERTIES *'
+		print*, ' MATERIAL PROPERTIES:'
 		write(*,100) NPLANE,V,E,FRICTION
- 100  FORMAT(' # PLANES=',I2,' POISSIONS RATIO=',
+ 100  FORMAT('   -> PLANES=',I2,' POISSIONS RATIO=',
      1      F5.3,' YOUNGS MOD: ',G10.4,' COEF. FRICTION=',F5.3)
 		
 C    - Calculate needed material constants
@@ -309,8 +310,8 @@ C      rigidity
 
 C       Added by JANIN
 		PRINT*, ''
-		PRINT*, 'Size of the computation grid:'
-		PRINT*, npts
+		PRINT*, ' SIZE OF THE COMPUTATION GRID:'
+		PRINT*, '   -> ',npts
 
 C    - Check input KODE: Added by A.JANIN
 		DO I=1,ndis
@@ -360,13 +361,16 @@ C			convert to stresses and rotations
 			END DO
 		ENDIF
 
-		print*, 'BACKGROUND DEFORMATION: ', BFLAG
-		print*, BSTRESS
+		print*, ''
+		print*, ' BACKGROUND DEFORMATION: ', BFLAG
+		print*, '   -> ',BSTRESS
 C *** Read in the element structure of each plane ***      
 		
+		print*, ''
+		print*, ' PLANE DETAILS:'
 			write(*,300)
- 300  	FORMAT(//,' * PLANE DETAILS *',/,
-     1 	' PLN# ORG:XO      YO      ZO    ',
+ 300  	FORMAT(
+     1 	'  PLANE-ID   ORG:XO      YO      ZO    ',
      2 	' WD:STK     DIP    #SUB-EL:STK DIP  ',
      3 	'STK    DIP')
 
@@ -424,8 +428,7 @@ C           influence coefficient matrices from global to in-plane coordinates
 
 C     - Check that the dimensions are not exceeded 
 		ITOTAL=MAXB1*MAXB2*NPLANE
-		print*, ''
-		print *, 'ITOTAL = ', ITOTAL
+
 		IF(ITOTAL.GT.MAX_ELEM) THEN
 			print *,'Dimensions exceeded'
 			print *,'Continue anyway......CAUTION!!!!!!!'
@@ -504,13 +507,6 @@ C  Added by A.JANIN
 	  real*4, intent(in)  :: input_ss(ndis), input_ds(ndis)
 	  real*4, intent(in)  :: input_ts(ndis)
 
-	  
-C *** Finish reading input data
-      write(*,'(2a)')
-     1 ' PLN  ELEM.-INDEX  CODE  BC1-shear      BC2-shear  ',
-     2 '   BC3-normal'
-      write(*,'(a)') '                           (STK)         (DIP)'
-
 C     initially assume all elements have fixed rel. displ.
       FIXED = -1
 
@@ -543,6 +539,7 @@ C       		some or no elements have unconstrained rel. displ.
      &	 		    CALL RESOLVE(BC(1,I,J,N),BC(2,I,J,N))
 
 10    	CONTINUE
+		print*, ''
       
         IF(FIXED.GE.0) THEN
 C       	some or no elements have fixed rel. displ. but not all
@@ -989,6 +986,8 @@ C - Invert XMATRIX to solve for unknown relative displacement discontinuities
 	WRITE(*,'(/,A,2(I5,A))') ' STARTING INVERSION OF ',NUME,
      1	  ' BY ',NUME,' MATRIX - PLEASE BE PATIENT!'
         CALL INVERT(NUME)
+	
+	print*, ''
 	WRITE(*,'(A)') ' INVERSION DONE!'
 
 C	no fixed rel. displ. boundary conditions
