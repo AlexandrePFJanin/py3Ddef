@@ -315,6 +315,8 @@ C       Added by JANIN
 C    - Check input KODE: Added by A.JANIN
 		DO I=1,ndis
 			if (any(input_kode(I)==accepted_kod)) then
+				CONTINUE
+			else
 				print*, ''
 				print*, ' ===================== ERROR ====================='
 				print*, ' >>  ERROR IN THE INPUT KODE OF THE ELEMENT: ', I
