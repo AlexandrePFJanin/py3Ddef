@@ -72,7 +72,7 @@ Discontinuities are user-defined for each patch in the reference frame of patche
 | 15 | $$D_{s}$$ | $$D_{d}$$ | $$\sigma_{n}$$ |
 
 
-where $u_{s}^{-}$, $u_{d}^{-}$ and $u_{n}^{-}$ represent the absolute displacements (the magnitude of the motion of the footwall) in the strike, dip and normal directions, respectively. $$D_{s}$$, $$D_{d}$$ and $$D_{n}$$ represent the relative displacement in the strike, dip and normal directions, respectively. $$\tau_{s}$$, $$\tau_{d}$$ and $$\sigma_{n}$$ are the stresses defined at the center of the patch in the strike, dip and normal directions, respectively.
+where $u_{s}^{-}$, $u_{d}^{-}$ and $u_{n}^{-}$ represent the absolute displacements (the magnitude of the motion of the footwall) in the strike, dip and normal directions, respectively. $D_{s}$, $D_{d}$ and $D_{n}$ represent the relative displacement in the strike, dip and normal directions, respectively. $\tau_{s}$, $\tau_{d}$ and $\sigma_{n}$ are the stresses defined at the center of the patch in the strike, dip and normal directions, respectively. For *code=11*, the user specifies a stress magnitude $\tau(\phi)$ and the direction of shear $\phi$ as an angle measured from the strike direction (in *deg*). Then, the code resolves these conditions into shear stress conditions in the strike and dip directions.
 
 Absolute displacement refers to the motion of the footwall side of the patch with respect to the global coordinates (surrounding medium).
 Relative  displacement is the net dislocation or slip of one side of the patch with respect to the other side (similar to the fault offset observed after an earthquake).
