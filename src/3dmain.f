@@ -143,7 +143,9 @@ C  ** Added declaration to subroutine failure_planes
 C       real*4 rake1,rake2
 C****************************************************************************
 C      include array dimensions
-		INCLUDE 'sizes.inc'		
+		INCLUDE 'sizes.inc'
+C      Include file for unit numbers
+		
 
 C Material constants
 C      Lame parameter (lambda)
@@ -253,6 +255,7 @@ C Added by Alex. JANIN 16.06.24, define the computation grid ('stations')
 	real*4, intent(in)  :: length_dis(ndis), width_dis(ndis)
 	real*4, intent(in)  :: strike_dis(ndis), dip_dis(ndis)
 	integer, intent(in) :: input_kode(ndis)
+	integer accepted_kod(12)
 	real*4, intent(in)  :: input_ss(ndis), input_ds(ndis)
 	real*4, intent(in)  :: input_ts(ndis)
 	real*4, intent(in)  :: input_V, input_E, input_friction
@@ -267,7 +270,7 @@ c line flag and user coordinates
 C       scaling from degrees to radians
 			DATA TORAD/.017453293/		
 
-
+		accepted_kod = [1,2,3,4,5,6,10,11,12,13,14,15]
 C       ------- SUBROUTINE START ---------
 
 		PRINT*, ''
@@ -304,12 +307,24 @@ C      rigidity
 		XMU2=XMU*2.
 		DMULT=V/(1.-2.*V)
 
-C Added by JANIN
+C       Added by JANIN
 		PRINT*, ''
 		PRINT*, 'Size of the computation grid:'
 		PRINT*, npts
 
-C    - Read descriptor line
+C    - Check input KODE: Added by A.JANIN
+		DO I=1,ndis
+			if (any(input_kode(I)==accepted_kod)) then
+				print*, ''
+				print*, ' ===================== ERROR ====================='
+				print*, ' >>  ERROR IN THE INPUT KODE OF THE ELEMENT: ', I
+				print*, '     AVAILABLE VALUES ARE:'
+				print*, accepted_kod
+				print*, ' >>  PROGRAM INTERRUPTED'
+				print*, ' ================================================='
+				STOP
+			endif
+		ENDDO
 
 C    - Read in background deformation if desired
 		IF(BFLAG.EQ.'STRE'.OR.BFLAG.EQ.'stre') then
@@ -450,7 +465,6 @@ C  of planes and sub-elements is flexible (array dimensions of KODE
 C  defined via variables passed from the main routine).
 C******************************************************************************
       INCLUDE 'sizes.inc'
-      INCLUDE 'units.inc'
 
 C   - FIXED =-1 if all elements have fixed rel. displ.
 C           =0 if no elements have fixed rel. displ.	  
@@ -805,7 +819,8 @@ C        on the minus side.  Added August 1999.
          if(KODE(JP,IP,NP).eq.1.or
      &    .KODE(JP,IP,NP).eq.3.or
      &    .KODE(JP,IP,NP).eq.4.or
-     &    .KODE(JP,IP,NP).eq.5) YNP=YNP+1.e-4
+     &    .KODE(JP,IP,NP).eq.5.or
+     &    .KODE(JP,IP,NP).eq.6) YNP=YNP+1.e-4
       		
 C	 *** loop over IS,JS sub-elements of plane NS ***
 	 DO 115 JS=1,NBX1(NS)
@@ -865,7 +880,6 @@ C******************************************************************************
 C Subroutine to solve for the unknown relative displacement discontinuities.
 C******************************************************************************
       INCLUDE 'sizes.inc'
-
       INTEGER*4 FIXED
 	  
       INTEGER*4 KODE
@@ -939,6 +953,9 @@ C	dip-shear & normal stress, strike displ. b.c.s
 C	strike & dip-shear stresses, normal displ. b.c.s
 	BC(2,JP,IP,NP)=BC(2,JP,IP,NP)-BSTR(2)
 	BC(1,JP,IP,NP)=BC(1,JP,IP,NP)-BSTR(1)
+	  ELSEIF(KODE(JP,IP,NP).EQ.6) THEN
+C	strike & dip-shear displ, normal stress. b.c.s  added by A.JANIN
+	BC(3,JP,IP,NP)=BC(3,JP,IP,NP)-BSTR(3)
       ELSEIF(KODE(JP,IP,NP).EQ.11.OR.KODE(JP,IP,NP).EQ.12) THEN
 C	strike & dip stress, normal displ. fixed b.c.s
 	BC(1,JP,IP,NP)=BC(1,JP,IP,NP)-BSTR(1)
@@ -947,6 +964,9 @@ C	strike & dip stress, normal displ. fixed b.c.s
 	BC(1,JP,IP,NP)=BC(1,JP,IP,NP)-BSTR(1)
       ELSEIF(KODE(JP,IP,NP).EQ.14) THEN
 	BC(2,JP,IP,NP)=BC(2,JP,IP,NP)-BSTR(2)
+C   Added by A.JANIN
+	  ELSEIF(KODE(JP,IP,NP).EQ.15) THEN
+	BC(3,JP,IP,NP)=BC(3,JP,IP,NP)-BSTR(3)
       ENDIF
 
       DO 20 J=1,3
@@ -982,7 +1002,7 @@ C       *** loop over IP,JP sub-elements of plane NP ***
         DO 30 JP=1,NBX1(NP)
         DO 30 IP=1,NBX2(NP)
 
- 	IF(KODE(JP,IP,NP).LE.5) GOTO 30
+ 	IF(KODE(JP,IP,NP).LE.6) GOTO 30
 C	there are no fixed relative displacement boundary conditions
 
 	IF(KODE(JP,IP,NP).EQ.10) THEN
@@ -1006,33 +1026,46 @@ C		start shift at element/component IBC+2
 C		shift down 1
 		JJP=JJ+1
 33		XMATRIX(JJP,NUM_Ds)=XMATRIX(JJ,NUM_Ds)
-                XMATRIX(IBC+2,NUM_Ds)=BC(3,JP,IP,NP)
+        XMATRIX(IBC+2,NUM_Ds)=BC(3,JP,IP,NP)
 		NUME=NUME+1
  			
 	 ELSEIF(KODE(JP,IP,NP).EQ.13) THEN
-C	        fixed dip and normal displacement - make room for 2 displacements
+C	    fixed dip and normal displacement - make room for 2 displacements
 C		start shift at element/component IBC+1
 		DO 34 J=IBC+1,NUME
 		JJ=NUME-J+IBC+1			
 C		shift down 2
 		JJP=JJ+2
-34		XMATRIX(JJP,NUM_Ds)=XMATRIX(JJ,NUM_Ds)
-                XMATRIX(IBC+1,NUM_Ds)=BC(2,JP,IP,NP)
-                XMATRIX(IBC+2,NUM_Ds)=BC(3,JP,IP,NP)
+34		XMATRIX(JJP,NUM_Ds)   = XMATRIX(JJ,NUM_Ds)
+        XMATRIX(IBC+1,NUM_Ds) = BC(2,JP,IP,NP)
+        XMATRIX(IBC+2,NUM_Ds) = BC(3,JP,IP,NP)
 		NUME=NUME+2
 
 	 ELSEIF(KODE(JP,IP,NP).EQ.14) THEN
 C		fixed strike and normal displacement - make room 
-C               for 2 displacements
+C       for 2 displacements
 C		start shift at element/component IBC+1
 		DO 35 J=IBC+1,NUME
 		JJ=NUME-J+IBC+1  			
 C		shift down 2
 		JJP=JJ+2
-35		XMATRIX(JJP,NUM_Ds)=XMATRIX(JJ,NUM_Ds)
-                XMATRIX(IBC+1,NUM_Ds)=XMATRIX(IBC,NUM_Ds)
-		XMATRIX(IBC,NUM_Ds)=BC(1,JP,IP,NP)
-                XMATRIX(IBC+2,NUM_Ds)=BC(3,JP,IP,NP)
+35		XMATRIX(JJP,NUM_Ds)   = XMATRIX(JJ,NUM_Ds)
+        XMATRIX(IBC+1,NUM_Ds) = XMATRIX(IBC,NUM_Ds)
+		XMATRIX(IBC,NUM_Ds)   = BC(1,JP,IP,NP)
+        XMATRIX(IBC+2,NUM_Ds) = BC(3,JP,IP,NP)
+		NUME=NUME+2
+	
+	  ELSEIF(KODE(JP,IP,NP).EQ.15) THEN
+C	    fixed strike and dip displacement Added by A.JANIN
+C		start shift at element/component IBC+1
+		DO 37 J=IBC+1,NUME
+		JJ=NUME-J+IBC+1			
+C		shift down 2
+		JJP=JJ+2
+37		XMATRIX(JJP,NUM_Ds)   = XMATRIX(JJ,NUM_Ds)
+        XMATRIX(IBC+2,NUM_Ds) = XMATRIX(IBC,NUM_Ds)
+		XMATRIX(IBC,NUM_Ds)   = BC(1,JP,IP,NP)
+		XMATRIX(IBC+1,NUM_Ds) = BC(2,JP,IP,NP)
 		NUME=NUME+2
  
 	ENDIF
@@ -1135,7 +1168,7 @@ C       *** loop over IP,JP sub-elements of plane NP ***
         DO 30 JP=1,NBX1(NP)
         DO 30 IP=1,NBX2(NP)
 		 
-        IF(KODE(JP,IP,NP).LE.5) GOTO 30
+        IF(KODE(JP,IP,NP).LE.6) GOTO 30
 C	there are no fixed displacement boundary conditions
 
 	IF(KODE(JP,IP,NP).EQ.10) THEN
@@ -1175,6 +1208,17 @@ C	 correct all other boundary conditions for fixed strike and normal displacemen
 35		XMATRIX(K,NUMEP1)=XMATRIX(K,NUMEP1)-
      &                XMATRIX(K,IBC3)*XMATRIX(IBC3,NUMEP1)
 
+	 ELSEIF(KODE(JP,IP,NP).EQ.15) THEN
+C	 Added by A.JANIN correct all other boundary conditions for fixed strike and dip displacement
+		IBC1=IBC+1
+		IBC2=IBC+2
+		DO K=1,NUME
+		XMATRIX(K,NUMEP1)=XMATRIX(K,NUMEP1)-
+     &                XMATRIX(K,IBC1)*XMATRIX(IBC1,NUMEP1)
+	    XMATRIX(K,NUMEP1)=XMATRIX(K,NUMEP1)-
+     &                XMATRIX(K,IBC2)*XMATRIX(IBC2,NUMEP1)
+	    ENDDO
+
 	 ENDIF
 C        index of next sub-element
 30	 IBC=IBC+3
@@ -1191,7 +1235,7 @@ C       *** loop over IP,JP blocks of plane NP ***
         DO 40 JP=1,NBX1(NP)
         DO 40 IP=1,NBX2(NP)
 		 
- 	IF(KODE(JP,IP,NP).LE.5) THEN
+ 	IF(KODE(JP,IP,NP).LE.6) THEN
 C	nothing is fixed
 C		index of next element/comp to work on
 		IBC=IBC+3
@@ -1225,6 +1269,11 @@ C	        skip 1 row/column index to 3rd comp. of this element
 		IBC=IBC+1
 C	        remove row & column IBC 
 		CALL ROWCOL(IBC,NUME,NUMEP1)
+	ELSEIF(KODE(JP,IP,NP).EQ.15) THEN
+C	Added by A.JANIN: fixed strike and dip displ.
+		CALL ROWCOL(IBC,NUME,NUMEP1)
+		CALL ROWCOL(IBC,NUME,NUMEP1)
+		IBC=IBC+1
 	ENDIF
 		
 40	CONTINUE
@@ -1509,6 +1558,14 @@ C 	strike & dip-shear stresses, normal displ. b.c.s
 	XMATRIX(NUMEBC+1,NUMEDI)=STR(1,I)
 	XMATRIX(NUMEBC+2,NUMEDI)=STR(2,I)
 9	XMATRIX(NUMEBC+3,NUMEDI)=DSPL(3,I)
+      ELSEIF(KODNP.EQ.6) THEN
+C 	strike & dip-shear displ, normal stress. b.c.s, added by A.JANIN
+	DO I=1,3
+	NUMEDI=NUMED+I
+	XMATRIX(NUMEBC+1,NUMEDI)=DSPL(1,I)
+	XMATRIX(NUMEBC+2,NUMEDI)=DSPL(2,I)
+	XMATRIX(NUMEBC+3,NUMEDI)=STR(3,I)
+	ENDDO
       ELSEIF(KODNP.EQ.10) THEN
 C	strike, dip, normal displ. fixed b.c.s
 	DO 7 J=1,3
@@ -1543,6 +1600,17 @@ C	dip stress, normal & strike displ. fixed b.c.s
 	DO 8 J=1,3
  	XMATRIX(NUMEBI,NUMED+J)=0.
 8	K=K+2
+      ELSEIF(KODNP.EQ.15) THEN
+C	Added by A.JANIN: strike and dip displ., normal stress. fixed b.c.s
+	NUMEB3=NUMEBC+3
+	XMATRIX(NUMEB3,NUMED+1)=STR(3,1)
+	XMATRIX(NUMEB3,NUMED+2)=STR(3,2)
+	XMATRIX(NUMEB3,NUMED+3)=STR(3,3)
+	DO 10 I=1,2
+	NUMEBI=NUMEBC+I
+	DO 10 J=1,3
+ 	XMATRIX(NUMEBI,NUMED+J)=0.
+10	K=K+2
 	ENDIF
       RETURN
       END
