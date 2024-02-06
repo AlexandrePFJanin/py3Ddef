@@ -35,22 +35,22 @@ python setup.py install --user --prefix=
 
 ### The main function
 
-**py3Ddef** contains a main function 'py3Ddef.compute3ddef' solving the stresses, strains, and displacements for the input boundary condictions on each patches.
+**py3Ddef** contains a main function `py3Ddef.compute3ddef` solving the stresses, strains, and displacements for the input boundary condictions on each patches.
 
-'''python
+```python
 import py3Ddef
-'''
+```
 
-The following example shows you how to use it and get the following output fields computed on the input computation grid (defined by 'x', 'y', 'y' in *km*): the displacement 'u' (in *cm*), the 'stress' (unit of the Young's modulus 'E', *e.g. Pa*), the strain 'd', orientations of principal strains 'o', optimal failure planes 'f' (in *deg*), the relative displacements on each patches 'e' (in *cm*) and the displacement gradients 'g'.
+The following example shows you how to use it and get the following output fields computed on the input computation grid (defined by `x`, `y`, `y` in *km*): the displacement `u` (in *cm*), the `stress` (unit of the Young's modulus `E`, *e.g. Pa*), the strain `d`, orientations of principal strains `o`, optimal failure planes `f` (in *deg*), the relative displacements on each patches `e` (in *cm*) and the displacement gradients `g`.
 
-'''python
+```python
 u,s,d,o,f,e,g = py3Ddef.compute3ddef(x,y,z,\
                         xd,yd,zd,length,width,strike,dip,\
                         kode,ss,ds,ts,\
                         nu,E,mu)
-'''
+```
 
-In the overlying example, 'xd,yd,zd,length,width,strike,dip' define the geometry of each patch (in *deg* for the strike and the dip and in *km* for the others), 'kode,ss,ds,ts' define the type of boundary conditions (see next paragraph) applied on each patch (*i.e.* slip in the strike direction, stress in the dip direction, etc.), 'nu' is the Poisson's ratio.
+In the overlying example, `xd,yd,zd,length,width,strike,dip` define the geometry of each patch (in *deg* for the strike and the dip and in *km* for the others), `kode,ss,ds,ts` define the type of boundary conditions (see next paragraph) applied on each patch (*i.e.* slip in the strike direction, stress in the dip direction, etc.), `nu` is the Poisson's ratio.
 
 ### Boundary Condition types by Components
 
