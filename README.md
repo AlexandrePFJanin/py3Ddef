@@ -41,7 +41,7 @@ python setup.py install --user --prefix=
 import py3Ddef
 ```
 
-The following example shows you how to use it and get the following output fields computed on the input computation grid (defined by `x`, `y`, `y` in *km*): the displacement `u` (in *cm*), the `stress` (unit of the Young's modulus `E`, *e.g. Pa*), the strain `d`, orientations of principal strains `o`, optimal failure planes `f` (in *deg*), the relative displacements on each patches `e` (in *cm*) and the displacement gradients `g`.
+The following example shows you how to use it and get the following output fields computed on the input computation grid (defined by `x`, `y`, `y` in *km*): the displacement `u` (in *cm*), the stress `s` (unit of the Young's modulus `E`, *e.g. Pa*), the strain `d`, orientations of principal strains `o`, optimal failure planes `f` (in *deg*), the relative displacements on each patches `e` (in *cm*) and the displacement gradients `g`.
 
 ```python
 u,s,d,o,f,e,g = py3Ddef.compute3ddef(x,y,z,\
@@ -72,7 +72,7 @@ Discontinuities are user-defined for each patch in the reference frame of patche
 | 15 | $$D_{s}$$ | $$D_{d}$$ | $$\sigma_{n}$$ |
 
 
-where $$u_{s}^{-}$$, $$u_{d}^{-}$$ and $$u_{n}^{-}$$ represent the absolute displacements (the magnitude of the motion of the footwall) in the strike, dip and normal directions, respectively. $$D_{s}$$, $$D_{d}$$ and $$D_{n}$$ represent the relative displacement in the strike, dip and normal directions, respectively. $$\tau_{s}$$, $$\tau_{d}$$ and $$\sigma_{n}$$ are the stresses defined at the center of the patch in the strike, dip and normal directions, respectively.
+where $u_{s}^{-}$, $u_{d}^{-}$ and $u_{n}^{-}$ represent the absolute displacements (the magnitude of the motion of the footwall) in the strike, dip and normal directions, respectively. $$D_{s}$$, $$D_{d}$$ and $$D_{n}$$ represent the relative displacement in the strike, dip and normal directions, respectively. $$\tau_{s}$$, $$\tau_{d}$$ and $$\sigma_{n}$$ are the stresses defined at the center of the patch in the strike, dip and normal directions, respectively.
 
 Absolute displacement refers to the motion of the footwall side of the patch with respect to the global coordinates (surrounding medium).
 Relative  displacement is the net dislocation or slip of one side of the patch with respect to the other side (similar to the fault offset observed after an earthquake).
