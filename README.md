@@ -1,5 +1,5 @@
 # py3Ddef
-Implementation in Python of the three-dimensional, boundary element modeling code 3D~def (http://www.ceri.memphis.edu/people/ellis/3ddef/)
+Implementation in Python of the three-dimensional, boundary element modeling code [3D~def](http://www.ceri.memphis.edu/people/ellis/3ddef/)
 
 
 ## Citation
@@ -38,13 +38,13 @@ python setup.py install --user --prefix=
 **py3Ddef** contains a main function `py3Ddef.compute3ddef` solving the stresses, strains, and displacements for the input boundary condictions on each patches.
 
 ```python
-import py3Ddef
+from py3Ddef import compute3ddef
 ```
 
 The following example shows you how to use it and get the following output fields computed on the input computation grid (defined by `x`, `y`, `y` in *km*): the displacement `u` (in *cm*), the stress `s` (unit of the Young's modulus `E`, *e.g. Pa*), the strain `d`, orientations of principal strains `o`, optimal failure planes `f` (in *deg*), the relative displacements on each patches `e` (in *cm*) and the displacement gradients `g`.
 
 ```python
-u,s,d,o,f,e,g = py3Ddef.compute3ddef(x,y,z,\
+u,s,d,o,f,e,g = compute3ddef(x,y,z,\
                         xd,yd,zd,length,width,strike,dip,\
                         kode,ss,ds,ts,\
                         nu,E,mu)
@@ -52,9 +52,11 @@ u,s,d,o,f,e,g = py3Ddef.compute3ddef(x,y,z,\
 
 In the overlying example, `xd,yd,zd,length,width,strike,dip` define the geometry of each patch (in *deg* for the strike and the dip and in *km* for the others), `kode,ss,ds,ts` define the type of boundary conditions (see next paragraph) applied on each patch (*i.e.* slip in the strike direction, stress in the dip direction, etc.), `nu` is the Poisson's ratio.
 
+A full example is given in the script [test.py](/test/test.py) developping the case of a vertical dyke opening at depth, based on the work of Rubin, A. M., & Pollard, D. D. (1988), Dike-induced faulting in rift zones of Iceland and Afar. Geology, 16(5), 413-417.
+
 ### Boundary Condition types by Components
 
-Discontinuities are user-defined for each patch in the reference frame of patches (along the strike, in the dip direction, along the normal of the patch, i.e. tensile direction). The following table summarizes the different options. Note that several options have been added from the original version of 3D-DEF.
+Discontinuities are user-defined for each patch in the reference frame of patches (along the strike, in the dip direction, along the normal of the patch, *i.e.* tensile direction). The following table summarizes the different options. Note that several options have been added from the original version of 3D-DEF.
 
 | Code | Strike Dir. | Dip Dir. | Normal Dir.|
 | :---: | :---: | :---: | :---: |
