@@ -13,20 +13,28 @@ Gomberg, J., & Ellis, M. (1994). Topography and tectonics of the central New Mad
 
 ## Install py3Ddef:
 
-### Compilation
+Download **py3Ddef** from this page and unzip the archive. Then, move into the main directory of the package.
+```
+cd py3Ddef-main/
+```
+
+### 1. Compilation
 ```
 python setup.py build
 ```
 
-### Linking
+### 2. Linking
 
-Link in a user module directory:
+To link in a user module directory, use [pip](https://pip.pypa.io/en/stable/) and run 
 ```
-python setup.py install --user
+python -m pip install .
 ```
-On some OS, it is sometimes better to run :
+
+## Uninstall py3Ddef:
+
+As you used [pip](https://pip.pypa.io/en/stable/) for the installation, use it to uninstall the package. In a terminal, run:
 ```
-python setup.py install --user --prefix=
+pip uninstall py3Ddef
 ```
 
 ## Use py3Ddef:
