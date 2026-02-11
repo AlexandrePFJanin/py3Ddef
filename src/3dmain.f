@@ -78,14 +78,14 @@ C   2. The strike angle is defined clockwise from north.
 C   3. Dip is defined from the horizontal, from 0 to 90 degrees.
 C
 C Fault (element) relative displacement conventions are as follows:
-C   Dislocation Component	Sign		Faulting Mode
+C Disloc Component	Sign		Faulting Mode
 C	   Strike		>0			left-lateral
 C	    			<0			right-lateral
-C	    Dip		        >0			thrust
-C	  	 		<0			normal
-C	Tensile 
-C      (normal to plane)	>0			opening
-C                               <0			closing
+C	    Dip		    >0			thrust
+C	  	 		    <0			normal
+C	  Tensile (=normal to plane)
+C                   >0			opening
+C                   <0			closing
 C
 C Displacement boundary conditions refer to displacement of the footwall side
 C of the element.
@@ -112,35 +112,6 @@ C  The maximum shear stress (magnitude and orientation) is given by tmax, tmaxo,
 C  and tmaxa, each determined in subroutine TOPLANEa. tmaxo are components along
 C  x and y for QUIVER in MATLAB, and tmaxa is the pitch angle (or rake) of tmax.
 C
-C  Modified slightly in Aug. 2000 to correct some potential dimensioning
-C  errors. Only the first one might potentially have caused problems (but
-C  tests showed it did not on our system) - the other changes are more minor.
-C ** Added to subroutine DCD3D
-C     REAL*4 DEPTH,DIP
-C    Without this, DEPTH and DIP are ill defined in DCD3D.  However, the
-C    only use of them in DCD3D is to pass them to DCD3 and they are correct
-C    in DCD3 (since they were declared as real*4 in DCD3).
-C  Displacement gradient tensor values
-C      REAL*4 DGRAD
-C      COMMON/DGRADS/DGRAD(3,3,3)
-C ** Added dum to REAL*4 declaration in subroutines TOPLANE,invariants
-C       REAL*4 E,dum
-C       COMMON/TEMPS/E(3,3),dum(6,3)
-C  ** Added tmax,tmaxo(2),tmaxa to real*4 declaratioin in subroutines
-C     invariants, plane, userco
-C     real*4 stress,ewe,dgrten,pr,ym,FRICTION
-C    &    tmax,tmaxo(2),tmaxa
-C  ** Changed real declarations in Third_Results,STRAIN,TREND,SORT,FINGER,
-C      JACOBI,matmult to real*4  
-C  ** Added declaration to subroutine XYZ_Results
-C      real*4 ex,ey,ez,px,tx,py,ty,pz,tz 
-C      real*4 rake1,rake2,sp1,d1,sp2,d2
-C  ** Added declaration to subroutines invariants,XYZ_Results
-C     real*4 volchg,critic,octshr,work
-C  ** Added declaration to subroutine failure_planes
-C       real*4 rake1,rake2
-C  ** Added declaration to subroutine failure_planes
-C       real*4 rake1,rake2
 C****************************************************************************
 C      include array dimensions
 		INCLUDE 'sizes.inc'
@@ -149,26 +120,26 @@ C      Include file for unit numbers
 
 C Material constants
 C      Lame parameter (lambda)
-		REAL*4 DMULT 		
+		REAL*4 DMULT
 C      1-(Vp/Vs)**2 = (lambda+mu)/(lambda+2*mu)
-		REAL*4 ALPHA		
+		REAL*4 ALPHA
 C      rigidity
 		REAL*4 XMU
 C      2*rigidity
 		REAL*4 XMU2
-		COMMON/CONSTANTS/ALPHA,XMU,XMU2,DMULT	
+		COMMON/CONSTANTS/ALPHA,XMU,XMU2,DMULT
 
 C Reserved space for b.c. (boundary condition) codes, and b.c.s
 		INTEGER*4 ISPACE
 		REAL*4 	SPACE
-		COMMON/BCS/ISPACE(MAX_ELEM),SPACE(MAX_ELEM*3)  
+		COMMON/BCS/ISPACE(MAX_ELEM),SPACE(MAX_ELEM*3)
 
 C Displacement and stress tensors, temporary storage for 
 C influence coefficient matrices' calculations
 C      matrix for displacements
 		REAL*4 DSPL 
 C      matrix for stresses
-		REAL*4 STR		
+		REAL*4 STR
 		COMMON/TEMPS/DSPL(3,3),STR(6,3)
 
 C Displacement and stress tensors, storage for 
@@ -198,7 +169,7 @@ C Element descriptor parameters; for each plane
 C       X,Y,Z reference point in global coordinates
 	REAL*4 XO,YO,ZO
 C	cosine & sine of the strike (cw wrt N)
-	REAL*4 C,S	
+	REAL*4 C,S
 C	dip (wrt horizontal), cosine & sine of the dip
 	REAL*4 DIP,CDIP,SDIP 
 C	sub-element widths in the strike & dip directions
@@ -268,7 +239,7 @@ c line flag and user coordinates
 		common/ucoordr/xu(maxco),yu(maxco),zu(maxco)
 
 C       scaling from degrees to radians
-			DATA TORAD/.017453293/		
+			DATA TORAD/.0174532925199/
 
 		accepted_kod = [1,2,3,4,5,6,10,11,12,13,14,15]
 C       ------- SUBROUTINE START ---------
@@ -304,7 +275,7 @@ C    - Calculate needed material constants
 C      1-(Vs/Vp)**2 = (lambda+mu)/(lambda+2*mu)
 		ALPHA=.5/(1.-V)
 C      rigidity
-		XMU=E*.5/(1.+V)	
+		XMU=E*.5/(1.+V)
 		XMU2=XMU*2.
 		DMULT=V/(1.-2.*V)
 
@@ -353,6 +324,7 @@ C		read in background displacement gradients
 			DO J=1,9
 				BSTRESS(J) = input_BG(J)
 			END DO
+			print*, ' INIT BACKGROUND DEFORMATION: ', BSTRESS
 C			convert to stresses and rotations
 			CALL FROM_DISPL
 		ELSE
@@ -448,7 +420,7 @@ C     allow flexibility in how planes and sub-elements are specified.
      &              inlout_ugrad,
      &              npts,ndis)
 
-	 PRINT*, ' --------------------------------------------'
+	 PRINT*, '--------------------------------------------'
 	 PRINT*, ''
  
       RETURN
@@ -476,7 +448,7 @@ C           =0 if no elements have fixed rel. displ.
 C           =1 if some but not all elements have fixed rel. displ.	  
 	INTEGER*4 FIXED
 
-	REAL*4 XMATRIX	  
+	REAL*4 XMATRIX
       	COMMON/SOLN/XMATRIX(MAX3_ELEM,MAX3_ELEM+1)
 
 	REAL*4 XO,YO,ZO,C,S,DIP,CDIP,SDIP,BWX1,BWX2
@@ -517,7 +489,7 @@ C     initially assume all elements have fixed rel. displ.
       DO 10 N=1,NPLANE
 			
 C       For each element along strike
-		DO 10 I=1,NBX1(N)		
+		DO 10 I=1,NBX1(N)
 
 			DO 11 J=1,NBX2(N)
 	         
@@ -544,7 +516,7 @@ C       		some or no elements have unconstrained rel. displ.
         IF(FIXED.GE.0) THEN
 C       	some or no elements have fixed rel. displ. but not all
           	DO 12 N=1,NPLANE
-	  			DO 12 I=1,NBX1(N)		
+	  			DO 12 I=1,NBX1(N)
 	  				DO 12 J=1,NBX2(N)
       	  				IF(KODE(I,J,N).GE.10) FIXED=1 
 12        	CONTINUE
@@ -556,11 +528,17 @@ C *** 	Calculate influence coefficient matrix
 C *** 	Solve for shear and normal displacement discontinuities.
      	CALL SOLVE(NUME,NUM_Ds,FIXED,MAXB1,MAXB2,NPLANE,KODE,BC)
 
+		PRINT*, ''
+		PRINT*, 'SOLVING ON THE GRID'
+		PRINT*, ''
+
       	CALL GRID(NUM_Ds,NPLANE,xg,yg,zg,inlout_displ,
      &              inlout_stress,inlout_strain,
      &              inlout_orient,inlout_failure,inlout_elements,
      &              inlout_ugrad,
      &              npts)     
+
+		PRINT*, 'COMPUTE 3D DEFORMATIONS: DONE!'
 
 		RETURN
       	END
@@ -586,7 +564,7 @@ C	( dUy/dx - dUx/dy)/2
 C	( dUx/dz - dUz/dx)/2
 	ROT_Y=.5*(BSTRESS(3)-BSTRESS(7))
 C	( dUz/dy - dUy/dz)/2
-	ROT_X=.5*(BSTRESS(8)-BSTRESS(6))	
+	ROT_X=.5*(BSTRESS(8)-BSTRESS(6))
 
 C       Convert to stresses - see Jaeger and Cook, pg. 110
       	DILAT=(BSTRESS(1)+BSTRESS(5)+BSTRESS(9))*DMULT
@@ -649,7 +627,7 @@ C******************************************************************************
 	INCLUDE 'sizes.inc'
 	  
 C	index of the current plane
-	INTEGER*4 NS		
+	INTEGER*4 NS
 C	sine & cosine of the strike of the NSth plane
 	REAL*4 SSTK,CSTK
 C	sine & cosine of the dip of the NSth plane	
@@ -664,15 +642,15 @@ C				in-plane component	global component
 C				strike direction	strike direction 
       UG2P(1,1,NS)=SSTK
 C				strike direction	dip direction
-      UG2P(1,2,NS)=CSTK	
+      UG2P(1,2,NS)=CSTK
 C				strike direction	normal direction
-      UG2P(1,3,NS)=0.	
+      UG2P(1,3,NS)=0.
 C				dip direction		strike direction
       UG2P(2,1,NS)=-CSTK*CDIP
 C				dip direction		dip direction
       UG2P(2,2,NS)=SSTK*CDIP
 C				dip direction		normal direction
-      UG2P(2,3,NS)=SDIP	
+      UG2P(2,3,NS)=SDIP
 C				normal direction	strike direction
       UG2P(3,1,NS)=CSTK*SDIP
 C				normal direction	dip direction	
@@ -696,10 +674,10 @@ C							Sxz		Syy
 C	    						Sxz		Syz
       SG2P(1,5,NS)=UG2P(3,3,NS)*UG2P(1,2,NS)
 C	                				Sxz		Szz
-      SG2P(1,6,NS)=0.         	
+      SG2P(1,6,NS)=0.
 
 C							Syz		Sxx
-      SG2P(2,1,NS)=UG2P(2,1,NS)*UG2P(3,1,NS)	
+      SG2P(2,1,NS)=UG2P(2,1,NS)*UG2P(3,1,NS)
 C							Syz		Sxy
       SG2P(2,2,NS)=UG2P(2,1,NS)*UG2P(3,2,NS)+
      &                 UG2P(2,2,NS)*UG2P(3,1,NS)
@@ -1010,7 +988,7 @@ C	there are no fixed relative displacement boundary conditions
 C		three fixed displacements - make room for 3 displacements
 C		start shift at element/component IBC
 		DO 31 J=IBC,NUME
-		JJ=NUME-J+IBC	
+		JJ=NUME-J+IBC
 C		shift down 3			 
 		JJP=JJ+3	
 31		XMATRIX(JJP,NUM_Ds)=XMATRIX(JJ,NUM_Ds)
@@ -1047,7 +1025,7 @@ C		fixed strike and normal displacement - make room
 C       for 2 displacements
 C		start shift at element/component IBC+1
 		DO 35 J=IBC+1,NUME
-		JJ=NUME-J+IBC+1  			
+		JJ=NUME-J+IBC+1
 C		shift down 2
 		JJP=JJ+2
 35		XMATRIX(JJP,NUM_Ds)   = XMATRIX(JJ,NUM_Ds)
@@ -1060,7 +1038,7 @@ C		shift down 2
 C	    fixed strike and dip displacement Added by A.JANIN
 C		start shift at element/component IBC+1
 		DO 37 J=IBC+1,NUME
-		JJ=NUME-J+IBC+1			
+		JJ=NUME-J+IBC+1
 C		shift down 2
 		JJP=JJ+2
 37		XMATRIX(JJP,NUM_Ds)   = XMATRIX(JJ,NUM_Ds)
