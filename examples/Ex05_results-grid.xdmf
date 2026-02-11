@@ -1,0 +1,30 @@
+<?xml version="1.0" ?>
+<!DOCTYPE Xdmf SYSTEM "Xdmf.dtd" []>
+<Xdmf Version="3.0">
+ <Domain>
+  <Grid Name="UniformGrid" GridType="Uniform">
+   <Topology TopologyType="3DRectMesh" Dimensions="40 100 100"/>
+   <Geometry GeometryType="VXVYVZ">
+    <DataItem Dimensions="100" NumberType="Float" Precision="8" Format="HDF">
+     Ex05_results-grid.h5:/X
+    </DataItem>
+    <DataItem Dimensions="100" NumberType="Float" Precision="8" Format="HDF">
+     Ex05_results-grid.h5:/Y
+    </DataItem>
+    <DataItem Dimensions="40" NumberType="Float" Precision="8" Format="HDF">
+     Ex05_results-grid.h5:/Z
+    </DataItem>
+   </Geometry>
+   <Attribute Name="displacement" AttributeType="Vector" Center="Node">
+    <DataItem Dimensions="40 100 100 3" NumberType="Float" Precision="8" Format="HDF">
+     Ex05_results-grid.h5:/displacement
+    </DataItem>
+   </Attribute>
+   <Attribute Name="stress" AttributeType="Tensor" Center="Node">
+    <DataItem Dimensions="40 100 100 9" NumberType="Float" Precision="8" Format="HDF">
+     Ex05_results-grid.h5:/stress
+    </DataItem>
+   </Attribute>
+  </Grid>
+ </Domain>
+</Xdmf>
