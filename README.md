@@ -189,7 +189,7 @@ D_i^s = u_{i_-}^s - u_{i_+}^s \\
 D_i^d = u_{i_-}^d - u_{i_+}^d \\
 D_i^n = u_{i_-}^n - u_{i_+}^n
 ```
-The subscripts $_-$ and $_+$ refer to the absolute displacement of the **footwall** and **hangingwall**, respectively..
+The subscripts $-$ and $+$ refer to the absolute displacement of the **footwall** and **hangingwall**, respectively..
 
 The distinction between absolute and relative displacements is crucial.
 
