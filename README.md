@@ -11,12 +11,8 @@ The strength of **3D~def** lies in the fact that, unlike classical dislocation m
 
 If you use **py3Ddef** or **3D~def** in your research, we kindly ask that you cite the following references, acknowledging the work of J. Gomberg and M. Ellis:
 
-```
-Gomberg, J. S., & Ellis, M. (1993). 3D-DEF; a user's manual (a three-dimensional, boundary element modeling program) (No. 93-547). US Geological Survey,.
-```
-```
-Gomberg, J., & Ellis, M. (1994). Topography and tectonics of the central New Madrid seismic zone: Results of numerical experiments using a three‐dimensional boundary element program. Journal of Geophysical Research: Solid Earth, 99(B10), 20299-20310.
-```
+ - Gomberg, J. S., & Ellis, M. (1993). 3D-DEF; a user's manual (a three-dimensional, boundary element modeling program) (No. 93-547). US Geological Survey,.
+ - Gomberg, J., & Ellis, M. (1994). Topography and tectonics of the central New Madrid seismic zone: Results of numerical experiments using a three‐dimensional boundary element program. Journal of Geophysical Research: Solid Earth, 99(B10), 20299-20310.
 
 
 ## Table of contents:
@@ -116,7 +112,7 @@ As you used [pip](https://pip.pypa.io/en/stable/) for the installation, use it t
 python -m pip uninstall py3Ddef
 ```
 
-[$\rightsquigarrow$ Back to the Table of Content](#table-of-contents)
+$\rightsquigarrow$ [Back to the Table of Content](#table-of-contents)
 
 ## Use py3Ddef:
 
@@ -130,7 +126,7 @@ In **3D~def**, a **dislocation represents a surface of constant slip**. Displace
 
 **3D~def** solve the displacement across the dislocations by minimizing the strain energy in the surrounding medium while satisfying the boundary conditions in either stress or displacement applied on each dislocation surface. Doing this, the model explicitly accounts for the interactions between dislocations and with the background deformation.
 
-[$\rightsquigarrow$ Back to the Table of Content](#table-of-contents)
+$\rightsquigarrow$ [Back to the Table of Content](#table-of-contents)
 
 #### Solving the deformation
 
@@ -174,7 +170,7 @@ The matrix $A$ contains the Green’s functions (computed using the Okada, 1992,
 
 > **_NOTE:_** A numerical error may occur if a point of the computational grid (used to compute the solution in the surrounding medium) lies exactly on a dislocation.
 
-[$\rightsquigarrow$ Back to the Table of Content](#table-of-contents)
+$\rightsquigarrow$ [Back to the Table of Content](#table-of-contents)
 
 #### Geometries and coordinate systems
 
@@ -197,7 +193,7 @@ The subscripts $_-$ and $_+$ refer to the absolute displacement of the **footwal
 
 The distinction between absolute and relative displacements is crucial.
 
-[$\rightsquigarrow$ Back to the Table of Content](#table-of-contents)
+$\rightsquigarrow$ [Back to the Table of Content](#table-of-contents)
 
 #### Boundary conditions
 
@@ -222,7 +218,7 @@ The difference between absolute displacement and relative displacement is crucia
 
 For *code=11*, the user specifies a stress magnitude $\tau(\phi)$ and the direction of shear $\phi$ as an angle measured from the strike direction (in *deg*). Then, the code resolves these conditions into shear stress conditions in the strike and dip directions.
 
-[$\rightsquigarrow$ Back to the Table of Content](#table-of-contents)
+$\rightsquigarrow$ [Back to the Table of Content](#table-of-contents)
 
 #### Background deformation
 
@@ -234,7 +230,7 @@ The background stresses are subtracted from the stress boundary conditions befor
 
 If a displacement gradient tensor is specified, then the only affect will be to modify the output displacements by any rigid body rotations associated with the background displacement gradient field.
 
-[$\rightsquigarrow$ Back to the Table of Content](#table-of-contents)
+$\rightsquigarrow$ [Back to the Table of Content](#table-of-contents)
 
 #### Friction
 
@@ -242,7 +238,7 @@ The coefficient of internal friction is only used to determine potential failure
 
 Note that the stress boundary conditions placed on the central element via code 12 are ending conditions. That is, the stresses take the zero values at the end of the model run, and displacements that occur across the element do so in order to preserve the zero stress conditions. In other words, the element behaves like a frictionless fault. To simulate friction on the element, you would need to impose a non-zero level of shear stress opposite in sign to that imposed by the driving stresses. This is leads to complications of having to assume a priori slip directions, which we will discuss elsewhere.
 
-[$\rightsquigarrow$ Back to the Table of Content](#table-of-contents)
+$\rightsquigarrow$ [Back to the Table of Content](#table-of-contents)
 
 #### Units
 
@@ -257,7 +253,7 @@ Note that the stress boundary conditions placed on the central element via code 
 | Strain | - |
 | Angles | degree |
 
-[$\rightsquigarrow$ Back to the Table of Content](#table-of-contents)
+$\rightsquigarrow$ [Back to the Table of Content](#table-of-contents)
 
 #### Displacement and stress conventions
 
@@ -279,7 +275,7 @@ Conventions on the stress:
 | $<0$ | Compression |
 | $>0$ | Extension |
 
-[$\rightsquigarrow$ Back to the Table of Content](#table-of-contents)
+$\rightsquigarrow$ [Back to the Table of Content](#table-of-contents)
 
 
 
@@ -339,7 +335,7 @@ Results on the dislocations:
 
 > **_EXAMPLE:_** Check the example [Ex01_Dike-induced-faulting.py](./examples/Ex01_Dike-induced-faulting.py) to see a first basic example of how to use `py3Ddef.compute3Ddef`. The example is about a vertical dyke opening at depth, based on the work of Rubin & Pollard (1988)
 
-[$\rightsquigarrow$ Back to the Table of Content](#table-of-contents)
+$\rightsquigarrow$ [Back to the Table of Content](#table-of-contents)
 
 #### Dislocations
 
@@ -360,10 +356,10 @@ Working with `py3Ddef.geometry.PatchCollection` objects also allows to easily pa
 
 > **_EXAMPLE:_** Check the example [Ex02_Vertical-fault-driven-displacement-gradient.py](./examples/Ex02_Vertical-fault-driven-displacement-gradient.py) to see an example of how to use `py3Ddef.geometry.discreteDislocation` to generate dislocation geometries and [Ex03_Two-vertical-faults-driven-by-displacement-gradient.py](./examples/Ex03_Two-vertical-faults-driven-by-displacement-gradient.py) to see how to combine several geometries with functions of `py3Ddef.geometry.PatchCollection` objects.
 
-[$\rightsquigarrow$ Back to the Table of Content](#table-of-contents)
+$\rightsquigarrow$ [Back to the Table of Content](#table-of-contents)
 
 
-#### Computation grid
+#### Computational grid
 
 Similarly to dislocations, **py3Ddef** offers a comprehensive framework for defining and managing computational grid geometries for solving the deformation in the surrounding elastic medium through the class `py3Ddef.geometry.UniformGrid`.
 
@@ -384,7 +380,7 @@ Similarly to dislocation sets, `py3Ddef.geometry.UniformGrid` objects also allow
 
 > **_EXAMPLE:_** Check the example [Ex04_Vertical-dike-and-dipping-fault.py](./examples/Ex04_Vertical-dike-and-dipping-fault.py) to see an example of how to create and use a uniform grid with `py3Ddef.geometry.UniformGrid`.
 
-[$\rightsquigarrow$ Back to the Table of Content](#table-of-contents)
+$\rightsquigarrow$ [Back to the Table of Content](#table-of-contents)
 
 
 #### Visualisation
@@ -404,7 +400,7 @@ You can link output fields of `py3Ddef.compute3Ddef` to either the input grid ob
 > **_EXAMPLE:_** Check the example [Ex05_Vertical-dike-and-dipping-fault-3D-visualisation.py](./examples/Ex05_Vertical-dike-and-dipping-fault-3D-visualisation.py) to see how to automatically export **py3Ddef** fields and geometries in a format (XDMF and HDF5) readable by **Paraview**. Note that this examples comes with the Paraview files already computed (.xdmf and .h5 files (`Ex05_results*`) available [here](./examples/)) so that you can load them directly and see if a visualisation of your data with Paraview can be usefull for you.
 
 
-[$\rightsquigarrow$ Back to the Table of Content](#table-of-contents)
+$\rightsquigarrow$ [Back to the Table of Content](#table-of-contents)
 
 
 ### Examples
@@ -419,21 +415,18 @@ The following table describes the examples provided with **py3Ddef**. They highl
 | [Ex04_Vertical-dike-and-dipping-fault.py](./examples/Ex04_Vertical-dike-and-dipping-fault.py) | Original example of a vertical dike with injection triggering motion on a nearby dipping fault. Shows how to efficiently create a uniform grid for the computation of the solution on the surrounding elastic medium using `py3Ddef.geometry.UniformGrid`. Shows how to visualise in 3D the input dislocation geometry with the internal function `.plot3D` of a `py3Ddef.geometry.PatchCollection` object. |
 | [Ex05_Vertical-dike-and-dipping-fault-3D-visualisation.py](./examples/Ex05_Vertical-dike-and-dipping-fault-3D-visualisation.py) | Similar context as Ex04. Shows how to easily visualise the results in [ParaView](https://www.paraview.org/) using the internal functions `.export2paraview` for the computational grid and the set of dislocations. Shows how to link output fields of `py3Ddef.compute3Ddef` to the input computational grid and the input dislocation set with the internal functions `.link` of the relevant objects.|
 
-[$\rightsquigarrow$ Back to the Table of Content](#table-of-contents)
+$\rightsquigarrow$ [Back to the Table of Content](#table-of-contents)
 
 ## Cite py3Ddef
 [3D~def](http://www.ceri.memphis.edu/people/ellis/3ddef/) is the product of the work of J. Gomberg and M. Ellis. 
 
 If you use **py3Ddef** or **3D~def** in your research, we kindly ask that you cite the following references, acknowledging the work of J. Gomberg and M. Ellis:
 
-```
-Gomberg, J. S., & Ellis, M. (1993). 3D-DEF; a user's manual (a three-dimensional, boundary element modeling program) (No. 93-547). US Geological Survey,.
-```
-```
-Gomberg, J., & Ellis, M. (1994). Topography and tectonics of the central New Madrid seismic zone: Results of numerical experiments using a three‐dimensional boundary element program. Journal of Geophysical Research: Solid Earth, 99(B10), 20299-20310.
-```
+ - Gomberg, J. S., & Ellis, M. (1993). 3D-DEF; a user's manual (a three-dimensional, boundary element modeling program) (No. 93-547). US Geological Survey,.
+ - Gomberg, J., & Ellis, M. (1994). Topography and tectonics of the central New Madrid seismic zone: Results of numerical experiments using a three‐dimensional boundary element program. Journal of Geophysical Research: Solid Earth, 99(B10), 20299-20310.
 
-[$\rightsquigarrow$ Back to the Table of Content](#table-of-contents)
+
+$\rightsquigarrow$ [Back to the Table of Content](#table-of-contents)
 
 ## References
 
@@ -444,4 +437,4 @@ Gomberg, J., & Ellis, M. (1994). Topography and tectonics of the central New Mad
  - Rubin, A. M., & Pollard, D. D. (1988). Dike-induced faulting in rift zones of Iceland and Afar. Geology, 16(5), 413-417.
 
 
-[$\rightsquigarrow$ Back to the Table of Content](#table-of-contents)
+$\rightsquigarrow$ [Back to the Table of Content](#table-of-contents)
