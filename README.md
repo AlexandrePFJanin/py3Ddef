@@ -622,7 +622,7 @@ The function `py3Ddef.viewer.plotFault2D` allows to project a set of dislocation
 This function has numerous display options (*e.g.* hatch locked frictional dislocations) detailed in its documentation (`help(plotFault2D)`) and presented through the different proposed [examples](./examples/).
 
 > [!TIP]
->  Check the example [Ex03_Vertical-fault-driven-displacement-gradient](./examples/Ex03_Vertical-fault-driven-displacement-gradient) to see an example of how to use `py3Ddef.viewer.plotFault2D`.
+>  Check the example [Ex03_Vertical-fault-driven-displacement-gradient.py](./examples/Ex03_Vertical-fault-driven-displacement-gradient.py) to see an example of how to use `py3Ddef.viewer.plotFault2D`.
 
 The internal function `.plot3D()` of a `py3Ddef.geometry.PatchCollection` object enable a quick and easy visualisation of the 3D geometry of a collection of dislocation (for instance, to rapidly check if the input geometry was correct, *e.g.* depth should be negative, positive values of z are for elevation.)
 
@@ -684,7 +684,7 @@ solution.compute3Ddef(grid=grid, patches=patches, bg=bg, maxiter=10, tol=0.1, ..
 ```
 
 > [!TIP]
-> Check the example [Ex07_Frictional-vertical-fault-driven-background-stress.py](./examples/Ex07_Frictional-vertical-fault-driven-background-stress.py) to see how to define frictional dislocations through a comparison with the behavior of frictionless dislocations. Check the example [Ex08_Discrete-frictional-vertical-fault-lithostatic-pressure.py](Ex08_Discrete-frictional-vertical-fault-lithostatic-pressure.py) to see an example of discretized frictional fault with the effect of the lithostatic pressure on the inhibition of the slip at depth.
+> Check the example [Ex07_Frictional-vertical-fault-driven-background-stress.py](./examples/Ex07_Frictional-vertical-fault-driven-background-stress.py) to see how to define frictional dislocations through a comparison with the behavior of frictionless dislocations. Check the example [Ex08_Discrete-frictional-vertical-fault-lithostatic-pressure.py](./examples/Ex08_Discrete-frictional-vertical-fault-lithostatic-pressure.py) to see an example of discretized frictional fault with the effect of the lithostatic pressure on the inhibition of the slip at depth.
 
 
 ### Examples
@@ -695,12 +695,12 @@ The following table describes the examples provided with **py3Ddef**. They highl
 | :---: | :---: |
 | [Ex01_Dike-induced-faulting.py](./examples/Ex01_Dike-induced-faulting.py) | Dike-induced displacement field. From Rubin & Pollard (1988). Shows basic notions of how to use `py3Ddef.compute3Ddef` |
 | [Ex02_Dike-induced-faulting_full-interface.py](./examples/Ex02_Dike-induced-faulting_full-interface.py) | Same as Ex01 but using the full interface of **py3Ddef** including: how to use the run controller `py3Ddef.DeformationRun`, how to efficiently create a set of dislocations with `py3Ddef.geometry.discreteDislocation` and how to create a uniform grid for the computation of the solution on the surrounding elastic medium using `py3Ddef.geometry.UniformGrid` |
-| [Ex03_Vertical-fault-driven-displacement-gradient](./examples/Ex03_Vertical-fault-driven-displacement-gradient) | Based on the Example 1 of **3D~def**: A vertical strike-slip fault driven by dextral simple shear. Shows how to drive deformation using a background deformation. Shows how to use the visualisation function `py3Ddef.viewer.plotFault2D`. |
+| [Ex03_Vertical-fault-driven-displacement-gradient.py](./examples/Ex03_Vertical-fault-driven-displacement-gradient.py) | Based on the Example 1 of **3D~def**: A vertical strike-slip fault driven by dextral simple shear. Shows how to drive deformation using a background deformation. Shows how to use the visualisation function `py3Ddef.viewer.plotFault2D`. |
 | [Ex04_Two-vertical-faults-driven-by-displacement-gradient.py](./examples/Ex04_Two-vertical-faults-driven-by-displacement-gradient.py) | Similar context as Ex03 but now with several distinct population of dislocations. Shows how to combine sets of dislocations with the object `py3Ddef.geometry.PatchCollection` and how to visualise them using the notion of `group` of dislocation. |
 | [Ex05_Vertical-dike-and-dipping-fault.py](./examples/Ex05_Vertical-dike-and-dipping-fault.py) | Original example of a vertical dike with injection triggering motion on a nearby frictionless dipping fault. Shows how to visualise in 3D the input dislocation geometry with the internal function `.plot3D` of a `py3Ddef.geometry.PatchCollection` object. Shows run controller keyword shortcuts. |
 | [Ex06_Vertical-dike-and-dipping-fault-3D-visualisation.py](./examples/Ex06_Vertical-dike-and-dipping-fault-3D-visualisation.py) | Similar context as Ex05. Shows how to easily visualise the results on the grid and on the dislocation in [ParaView](https://www.paraview.org/) using the internal functions `.patches2paraview` and `grid2paraview` on the instance of the run controller.|
 | [Ex07_Frictional-vertical-fault-driven-background-stress.py](./examples/Ex07_Frictional-vertical-fault-driven-background-stress.py) | Comparison between a frictional and a frictionless dislocation under the same background stress field promoting strike-slip displacement on them. Shows how to define and use frictional dislocations and what the friction does. |
-| [Ex08_Discrete-frictional-vertical-fault-lithostatic-pressure.py](Ex08_Discrete-frictional-vertical-fault-lithostatic-pressure.py) | Discretized frictional vertical fault driven by a background stress field with lithostatic pressure. Shows how to discretized frictional fault, used the output `fstatus` containing the final frictional status of each dislocation, the effect of slip inhibition of the lithostatic pressure and some advanced feature of `py3Ddef.viewer.plotFault2D`. |
+| [Ex08_Discrete-frictional-vertical-fault-lithostatic-pressure.py](./examples/Ex08_Discrete-frictional-vertical-fault-lithostatic-pressure.py) | Discretized frictional vertical fault driven by a background stress field with lithostatic pressure. Shows how to discretized frictional fault, used the output `fstatus` containing the final frictional status of each dislocation, the effect of slip inhibition of the lithostatic pressure and some advanced feature of `py3Ddef.viewer.plotFault2D`. |
 | [Ex09_Friction-slip-triggering.py](./examples/Ex09_Friction-slip-triggering.py) | Same as Ex08 but here we focus on the slip increment at each iteration showing the slip triggering effect of the failure of unstable frictional dislocations. |
 
 
