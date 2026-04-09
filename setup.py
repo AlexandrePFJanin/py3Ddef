@@ -2,11 +2,11 @@ from setuptools import setup, find_packages
 
 setup(
     name="py3Ddef",
-    version="1.1.0",
+    version="2.0.0",
     author='Alexandre JANIN',
     author_email='alexandre.janin@protonmail.com',
     url='https://github.com/AlexandrePFJanin/py3Ddef',
-    description='Python implementation of the three-dimensional, boundary element modeling code 3D~def.',
+    description='A Python Package for 3D Boundary-Element Modeling in Geodynamics.',
     long_description=open('README.md', encoding='utf-8').read(),
     long_description_content_type='text/markdown',
     license='Apache License 2.0',
