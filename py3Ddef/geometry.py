@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 @author: Alexandre JANIN
-@aim:    Packages for geometrical operation
+@aim:    Geometrical data structures and functions
 """
 
 # External dependencies:
@@ -9,23 +9,24 @@ import numpy as np
 
 # Internal dependencies
 from .generics import im
-from .viewer import grid2paraview, patches2paraview, plotFault3D
-from . import GridScalar, GridVector, GridTensor, \
-                    GridDisplacement, GridStress, GridStrain, \
-                    GridPrincipalStrainOrientation, \
-                    GridOptimalFailurePlane, GridDisplacementGradient,\
-                    ElementDisplacement
+from .viewer import plotFault3D
 
 
 # ----------------- FUNCTIONS -----------------
 
 
-def discreteDislocation(x0, y0, z0, L, W, dip, strike, n_strike, n_dip, kode=10, ss=0, ds=0, ts=0, group=None, verbose=True):
+def discreteDislocation(x0, y0, z0, L, W, dip, strike, n_strike, n_dip,\
+                        kode=10, ss=0, ds=0, ts=0, group=None, \
+                        fcode=0, sdrop=0, rhoLitho=0, rhoFluid=0, C=0, mu=0.6,\
+                        verbose=True):
     """
     Discretize a dipping elastic dislocation plane into subpatches with arbitrary strike.
     Uses the same convention as 3D~def.
 
     Args:
+        
+        --- Geometry:
+        
         x0, y0, z0 (float):
             Coordinates of the top-left corner of the fault (km)
             x0, initial coordinate in the East direction
@@ -44,6 +45,38 @@ def discreteDislocation(x0, y0, z0, L, W, dip, strike, n_strike, n_dip, kode=10,
             Number of subpatches along strike
         n_dip (int):
             Number of subpatches along dip
+        
+        --- Boundary conditions:
+
+        kode (int):
+            Code of the b.c.
+        ss (scalar):
+            b.c. along strike
+        ds (scalar):
+            b.c. along dip
+        ts (scalar):
+            b.c. along normal
+        
+        --- Friction
+
+        fcode (int):
+            Friction code
+        sdrop (scalar):
+            Stress drop parameter
+        rhoLitho (scalar):
+            Average density of the rocks [unit: need to be consistent with the medium Young's modulus; denisty in kg.m^{-3} is the Young's modulus of the medium is in Pa (recommended)]
+        rhoFluid (scalar):
+            Average density of the fluid [unit: same as rhoLitho]
+        C (scalar):
+            Cohesion [unit: same as medium Young's modulus]
+        mu (float):
+            local friction
+        
+        --- Others:
+
+        verbose (bool):
+            Parameter controlling the verbose level in the terminal
+
 
     Returns:
         patches (instance of PatchCollection):
@@ -54,6 +87,8 @@ def discreteDislocation(x0, y0, z0, L, W, dip, strike, n_strike, n_dip, kode=10,
                 - dip : dip angle in degrees
                 - length : along strike (km)
                 - width : along dip (km)
+                - All the boundary conditions
+                - All the frictional conditions
     """
     pName = 'discretizeFault'
 
@@ -67,7 +102,7 @@ def discreteDislocation(x0, y0, z0, L, W, dip, strike, n_strike, n_dip, kode=10,
     im('    - number of subpatches along strike: '+str(n_strike), pName, verbose)
     im('    - number of subpatches along dip:    '+str(n_dip), pName, verbose)
     im('    - total number of subpatches:        '+str(int(n_strike*n_dip)), pName, verbose)
-    im('Discontinuity applied to every subpatched',pName, verbose)
+    im('Boundary Cond. applied to every subpatch',pName, verbose)
     if kode == 0 and ss==0 and ds==0 and ts == 0:
         txt = ' (default: No motion imposed, locked)'
     else:
@@ -76,6 +111,17 @@ def discreteDislocation(x0, y0, z0, L, W, dip, strike, n_strike, n_dip, kode=10,
     im('    - condition 1 (ss): '+str(ss)+txt, pName, verbose)
     im('    - condition 2 (ds): '+str(ss)+txt, pName, verbose)
     im('    - condition 2 (ts): '+str(ss)+txt, pName, verbose)
+    im('Frictional Cond. applied to every subpatch', pName, verbose)
+    im('    - friction code: '+str(fcode), pName, verbose)
+    if fcode == 0:
+        txt = '  (IGNORED)'
+    else:
+        txt = ''
+    im('    - sdrop:    '+str(sdrop)+txt, pName, verbose)
+    im('    - rhoLitho: '+str(rhoLitho)+txt, pName, verbose)
+    im('    - rhoFluid: '+str(rhoFluid)+txt, pName, verbose)
+    im('    - C:        '+str(C)+txt, pName, verbose)
+    im('    - mu:       '+str(mu)+txt, pName, verbose)
 
     patches = []
 
@@ -115,7 +161,13 @@ def discreteDislocation(x0, y0, z0, L, W, dip, strike, n_strike, n_dip, kode=10,
                 kode = kode,
                 ss = ss,
                 ds = ds,
-                ts = ts
+                ts = ts,
+                fcode = fcode,
+                sdrop = sdrop,
+                rhoLitho = rhoLitho,
+                rhoFluid = rhoFluid,
+                C = C,
+                mu = mu
             )
 
             patches.append(patch)
@@ -194,18 +246,19 @@ class UniformGrid:
                  verbose = True):
         """
         Args:
-        xmin, xmax (float)
-            Grid extent in x (East)
-            If xmin == xmax and nx = 1 then, only one layer of x
-        ymin, ymax (float)
-            Grid extent in y (North)
-            If ymin == ymax and ny = 1 then, only one layer of y
-        zmin, zmax (float)
-            Grid extent in z (Up)
-            If zmin == zmax and nz = 1 then, only one layer of z
-        nx, ny, nz (int)
-            Number of cells in x, y, z
+            xmin, xmax (float)
+                Grid extent in x (East)
+                If xmin == xmax and nx = 1 then, only one layer of x
+            ymin, ymax (float)
+                Grid extent in y (North)
+                If ymin == ymax and ny = 1 then, only one layer of y
+            zmin, zmax (float)
+                Grid extent in z (Up)
+                If zmin == zmax and nz = 1 then, only one layer of z
+            nx, ny, nz (int)
+                Number of cells in x, y, z
         """
+
         self.xmin, self.xmax = xmin, xmax
         self.ymin, self.ymax = ymin, ymax
         self.zmin, self.zmax = zmin, zmax
@@ -246,10 +299,6 @@ class UniformGrid:
         # Meshed grid
         self.x, self.y, self.z = np.meshgrid(self.xaxis, self.yaxis, self.zaxis, indexing='ij')
 
-        # Linked fields
-        self.v = []         # list of linked field
-        self.vnames = []    # list of field names
-
         # others
         self.verbose = verbose
         self.im('Uniform grid initialized')
@@ -261,6 +310,10 @@ class UniformGrid:
         """
         im(textMessage, 'UniformGrid', self.verbose, error=error, warn=warn, structure=structure, end=end)
 
+
+    @property
+    def type(self):
+        return type(self)
 
     @property
     def shape(self):
@@ -311,142 +364,35 @@ class UniformGrid:
         return np.column_stack([self.x.ravel(), self.y.ravel(), self.z.ravel()])
 
 
-    def link(self, a, name=None):
-        """
-        Link a new field to the grid and add it to the current list of linked fields.
-        """
-        self.im('Link a field to the grid')
-        # Import
-        nshape = None
-        if isinstance(a, GridDisplacement):
-            if a.x.shape != self.shape:
-                nshape  = self.shape
-            if name is None:
-                name = 'displacement'
-        elif isinstance(a, GridStress) or isinstance(a, GridStrain) or isinstance(a, GridDisplacementGradient):
-            if a.xx.shape != self.shape:
-                nshape  = self.shape
-            if name is None:
-                if isinstance(a, GridStress):
-                    name = 'stress'
-                elif isinstance(a, GridStrain):
-                    name = 'strain'
-                elif isinstance(a, GridDisplacementGradient):
-                    name = 'displGradient'
-        elif isinstance(a, GridPrincipalStrainOrientation):
-            if a.ex.shape != self.shape:
-                nshape  = self.shape
-            if name is None:
-                name = 'PrStrainOrient'
-        elif isinstance(a, GridOptimalFailurePlane):
-            if a.str1.shape != self.shape:
-                nshape  = self.shape
-            if name is None:
-                name = 'OptiFailPlane'
-        elif isinstance(a, np.ndarray):
-            original_name = name
-            if len(a.shape) == 1:   # probably a scalar field
-                a = GridScalar(a)
-                nshape = self.shape
-                if name is None:
-                    name = 'scalar'
-            elif len(a.shape) == 2:
-                if a.shape[1] == 3: # probably a vectorial field
-                    a = GridVector(a)
-                    nshape = (self.nx, self.ny, self.nz, 3)
-                    if name is None:
-                        name = 'vectorial'
-                elif a.shape[1] == 6: # probably a symmetric tensor
-                    a = GridTensor(a)
-                    nshape = (self.nx, self.ny, self.nz, 3, 3)
-                    if name is None:
-                        name = 'tensor'
-                else:
-                    raise TypeError('Error in the shape of the input numpy.ndarray.')
-            elif len(a.shape) == 3:
-                if a.shape == self.shape: # probably scalar
-                    a = GridScalar(a)
-                    if name is None:
-                        name = 'scalar'
-                elif a.shape[1] == 3 and a.shape[2] == 3:
-                    a = GridTensor(a)
-                    nshape = (self.nx, self.ny, self.nz, 3, 3)
-                    if name is None:
-                        name = 'tensor'
-                else:
-                    raise TypeError('Error in the shape of the input numpy.ndarray.')
-            else:
-                raise TypeError('Error in the shape of the input numpy.ndarray.')
-            # add a name extension
-            if original_name is None:
-                runCond = True
-                ii = 1
-                while runCond:
-                    nname = name+'_%s'%str(ii)
-                    if nname not in self.vnames:
-                        name = nname
-                        runCond = False
-                    else:
-                        ii += 1
-        else:
-            raise TypeError('Unkown type for the input.')
-        # Reshape:
-        if nshape is not None:
-            a.reshape(nshape)
-        # Append:
-        self.v.append(a)
-        self.vnames.append(name)
-        # End
-        self.im('Field linked!')
-        self.im('  - name:  '+str(name))
-        self.im('  - shape: '+str(a.shape))
-    
-
-    def removeField(self, i):
-        """
-        Remove the field number i.
-        
-        Args:
-            i (int): index of the field to remove
-        """
-        old_name = self.vnames[i]
-        self.v.pop(i)
-        self.vnames.pop(i)
-        self.im("Field number %s, '%s' was removed"%(str(i), old_name))
-
-
-    def export2paraview(self, fname, path='./', precision='Float'):
-        """
-        Export the current grid structure and the linked field(s) in XDMF and HDF5 files.
-        """
-        self.im('Exportation of the grid to XDMF+HDF5 files for Paraview')
-        if len(self.v) == 0:
-            self.im('Empty field: Export point IDs')
-            v = np.arange(int(self.nx*self.ny*self.nz)).reshape(self.shape)
-            self.link(v, 'pointID')
-        self.im('Fields exported:')
-        if self.verbose:
-            for i in range(len(self.v)):
-                self.im("  - '%s'"%(self.vnames[i]))
-        grid2paraview(fname, self, self.v, fieldnames=self.vnames, path=path, precision=precision)
-
-
 
 
 class Patch:
 
-    def __init__(self, x0=None, y0=None, z0=None, L=None, W=None, dip=None, strike=None, kode=10, ss=0, ds=0, ts=0):
-        self.x0 = x0    # origin of the element in the x (East) direction [km]
-        self.y0 = y0    # origin of the element in the y (North) direction [km]
-        self.z0 = z0    # origin of the element in the z (Depth) direction [km]
-        self.L  = L     # length of the element in the strike direction [km]
-        self.W  = W     # width of the element along the dip direction [km]
+    def __init__(self, x0=None, y0=None, z0=None,\
+                 L=None, W=None, dip=None, strike=None,\
+                 kode=10, ss=0, ds=0, ts=0,\
+                 fcode=0, sdrop=None, rhoLitho=None, rhoFluid=None, C=None, mu=None):
+        # --- Geometry
+        self.x0 = x0            # origin of the element in the x (East) direction [km]
+        self.y0 = y0            # origin of the element in the y (North) direction [km]
+        self.z0 = z0            # origin of the element in the z (Elevation) direction [km]
+        self.L  = L             # length of the element in the strike direction [km]
+        self.W  = W             # width of the element along the dip direction [km]
         self.dip = dip          # dip of the element [deg from horizontal]
         self.strike = strike    # strike azimuth [deg clockwise from North]
-        self.kode = kode
-        self.ss = ss
-        self.ds = ds
-        self.ts = ts
+        # --- Boundary conditions
+        self.kode = kode        # boundary condition code
+        self.ss = ss            # b.c. along strike
+        self.ds = ds            # b.c. along dip
+        self.ts = ts            # b.c. along normal
+        # --- Friction
+        self.check_friction(fcode, sdrop, rhoLitho, rhoFluid, C, mu)
+        self.fcode = fcode      # friction code
+        self.sdrop = sdrop      # stress drop parameter
+        self.rhoLitho = rhoLitho# average density of the rocks [unit: need to be consistent with the medium Young's modulus; denisty in kg.m^{-3} is the Young's modulus of the medium is in Pa (recommended)]
+        self.rhoFluid = rhoFluid# average density of the fluid [unit: same as rhoLitho]
+        self.C     = C          # cohesion [unit: same as medium Young's modulus]
+        self.mu    = mu         # local friction coefficient
     
     @property
     def area(self):
@@ -517,6 +463,16 @@ class Patch:
         _, _, zc = self.center
         return zc
 
+    def check_friction(self, fcode, sdrop, rhoLitho, rhoFluid, C, mu):
+        if fcode not in [0, 1, 2, 3, 4, 5]:
+            raise ValueError('Invalid value of fcode.')
+        if fcode == 0:
+            pass
+        else:
+            if sdrop is None or rhoLitho is None or C is None or mu is None or rhoFluid is None:
+                raise ValueError("Partially defined frictional event detected\nYou must set sdrop, rhoLitho, rhoFluid, C and mu\nfor each frictional element.")
+            if rhoLitho < 0 or rhoFluid < 0:
+                raise ValueError('Densities (rocks and fluid) are defined positive')
 
 
 
@@ -526,53 +482,69 @@ class PatchCollection:
     _count = 0
 
     def __init__(self, listPatches=[], autoload=True, group=None, verbose=True):
+        # --- Group
         PatchCollection._count += 1
-        self.group_init = int(PatchCollection._count)
-        self.verbose= verbose
-        self.patches= []
-        self.ids    = []
-        self.x0     = []
-        self.y0     = []
-        self.z0     = []
-        self.W      = []
-        self.L      = []
-        self.strike = []
-        self.dip    = []
-        self.kode   = []
-        self.ss     = []
-        self.ds     = []
-        self.ts     = []
-        self.xc     = []
-        self.yc     = []
-        self.zc     = []
-        self.nop    = 0
-        self.group  = []
-        self.v      = []
-        self.vnames = []
+        self.group_init = int(PatchCollection._count)   # original group identifier of the class instance
+        self.group  = []        # list of group identifier
+        # --- Verbose
+        self.verbose= verbose   # verbose control
+        # --- Collection
+        self.patches= []        # list of loaded py3Ddef.Patch objects
+        self.ids    = []        # indices of each patch
+        self.nop    = 0         # number of loaded patch
+        # --- Geometry
+        self.x0     = []        # origin of each element in the x (East) direction [km]
+        self.y0     = []        # origin of each element in the y (North) direction [km]
+        self.z0     = []        # origin of the element in the z (Elevation) direction [km]
+        self.W      = []        # length of the element in the strike direction [km]
+        self.L      = []        # width of the element along the dip direction [km]
+        self.strike = []        # strike azimuth [deg clockwise from North]
+        self.dip    = []        # dip of the element [deg from horizontal]
+        self.xc     = []        # center of each patch in the x direction
+        self.yc     = []        # center of each patch in the y direction
+        self.zc     = []        # center of each patch in the z direction
+        # --- Boundary conditions
+        self.kode   = []        # b.c. code
+        self.ss     = []        # b.c. along strike
+        self.ds     = []        # b.c. along dip
+        self.ts     = []        # b.c. along normal
+        # --- Friction
+        self.fcode    = []      # friction code
+        self.sdrop    = []      # stress drop parameter
+        self.rhoLitho = []      # average density of rocks [unit: need to be consistent with the medium Young's modulus; denisty in kg.m^{-3} is the Young's modulus of the medium is in Pa (recommended)]
+        self.rhoFluid = []      # average fluid density [unit: same as rhoLitho]
+        self.C        = []      # cohesion [unit: same as medium Young's modulus]
+        self.mu       = []      # local friction coefficient
         # init
         self.init(self.nop)
         if autoload and len(listPatches) != 0:
             self.add(listPatches, group=group)
 
     def init(self, n):
-        self.patches= [Patch()]*n
-        self.ids    = np.zeros(n, dtype=np.int32)
-        self.x0     = np.zeros(n, dtype=np.float64)
-        self.y0     = np.zeros(n, dtype=np.float64)
-        self.z0     = np.zeros(n, dtype=np.float64)
-        self.W      = np.zeros(n, dtype=np.float64)
-        self.L      = np.zeros(n, dtype=np.float64)
-        self.strike = np.zeros(n, dtype=np.float64)
-        self.dip    = np.zeros(n, dtype=np.float64)
-        self.kode   = np.zeros(n, dtype=np.int32)
-        self.ss     = np.zeros(n, dtype=np.float64)
-        self.ds     = np.zeros(n, dtype=np.float64)
-        self.ts     = np.zeros(n, dtype=np.float64)
-        self.xc     = np.zeros(n, dtype=np.float64)
-        self.yc     = np.zeros(n, dtype=np.float64)
-        self.zc     = np.zeros(n, dtype=np.float64)
-        self.group  = np.ones(n, dtype=np.int32) * self.group_init
-        self.nop    = n
+        self.patches  = [Patch()]*n
+        self.ids      = np.zeros(n, dtype=np.int32)
+        self.x0       = np.zeros(n, dtype=np.float64)
+        self.y0       = np.zeros(n, dtype=np.float64)
+        self.z0       = np.zeros(n, dtype=np.float64)
+        self.W        = np.zeros(n, dtype=np.float64)
+        self.L        = np.zeros(n, dtype=np.float64)
+        self.strike   = np.zeros(n, dtype=np.float64)
+        self.dip      = np.zeros(n, dtype=np.float64)
+        self.kode     = np.zeros(n, dtype=np.int32)
+        self.ss       = np.zeros(n, dtype=np.float64)
+        self.ds       = np.zeros(n, dtype=np.float64)
+        self.ts       = np.zeros(n, dtype=np.float64)
+        self.xc       = np.zeros(n, dtype=np.float64)
+        self.yc       = np.zeros(n, dtype=np.float64)
+        self.zc       = np.zeros(n, dtype=np.float64)
+        self.group    = np.ones(n, dtype=np.int32) * self.group_init
+        self.nop      = n
+        self.fcode    = np.zeros(n, dtype=np.int32)
+        self.sdrop    = np.zeros(n, dtype=np.float64)
+        self.rhoLitho = np.zeros(n, dtype=np.float64)
+        self.rhoFluid = np.zeros(n, dtype=np.float64)
+        self.C        = np.zeros(n, dtype=np.float64)
+        self.mu       = np.zeros(n, dtype=np.float64)
     
     def add(self, listPatches=[], group=None):
         group0 = group
@@ -587,20 +559,26 @@ class PatchCollection:
             n = len(listPatches)
             self.nop += n
             # init the fields that will be concatenate to the current instance
-            x0      = np.zeros(n, dtype=np.float64)
-            y0      = np.zeros(n, dtype=np.float64)
-            z0      = np.zeros(n, dtype=np.float64)
-            W       = np.zeros(n, dtype=np.float64)
-            L       = np.zeros(n, dtype=np.float64)
-            strike  = np.zeros(n, dtype=np.float64)
-            dip     = np.zeros(n, dtype=np.float64)
-            kode    = np.zeros(n, dtype=np.int32)
-            ss      = np.zeros(n, dtype=np.float64)
-            ds      = np.zeros(n, dtype=np.float64)
-            ts      = np.zeros(n, dtype=np.float64)
-            xc      = np.zeros(n, dtype=np.float64)
-            yc      = np.zeros(n, dtype=np.float64)
-            zc      = np.zeros(n, dtype=np.float64)
+            x0       = np.zeros(n, dtype=np.float64)
+            y0       = np.zeros(n, dtype=np.float64)
+            z0       = np.zeros(n, dtype=np.float64)
+            W        = np.zeros(n, dtype=np.float64)
+            L        = np.zeros(n, dtype=np.float64)
+            strike   = np.zeros(n, dtype=np.float64)
+            dip      = np.zeros(n, dtype=np.float64)
+            kode     = np.zeros(n, dtype=np.int32)
+            ss       = np.zeros(n, dtype=np.float64)
+            ds       = np.zeros(n, dtype=np.float64)
+            ts       = np.zeros(n, dtype=np.float64)
+            xc       = np.zeros(n, dtype=np.float64)
+            yc       = np.zeros(n, dtype=np.float64)
+            zc       = np.zeros(n, dtype=np.float64)
+            fcode    = np.zeros(n, dtype=np.int32)
+            sdrop    = np.zeros(n, dtype=np.float64)
+            rhoLitho = np.zeros(n, dtype=np.float64)
+            rhoFluid = np.zeros(n, dtype=np.float64)
+            C        = np.zeros(n, dtype=np.float64)
+            mu       = np.zeros(n, dtype=np.float64)
             group2add  = np.array([group]*n, dtype=np.int32)
             # iterative reading
             for i in range(n):
@@ -616,23 +594,35 @@ class PatchCollection:
                 ds[i]       = listPatches[i].ds
                 ts[i]       = listPatches[i].ts
                 xc[i], yc[i], zc[i] = listPatches[i].center
+                fcode[i]    = listPatches[i].fcode
+                sdrop[i]    = listPatches[i].sdrop
+                rhoLitho[i] = listPatches[i].rhoLitho
+                rhoFluid[i] = listPatches[i].rhoFluid
+                C[i]        = listPatches[i].C
+                mu[i]       = listPatches[i].mu
         elif isinstance(listPatches, PatchCollection):
             self.patches += listPatches.patches
             self.nop += listPatches.nop
-            x0      = listPatches.x0
-            y0      = listPatches.y0
-            z0      = listPatches.z0
-            W       = listPatches.W
-            L       = listPatches.L
-            strike  = listPatches.strike
-            dip     = listPatches.dip
-            kode    = listPatches.kode
-            ss      = listPatches.ss
-            ds      = listPatches.ds
-            ts      = listPatches.ts
-            xc      = listPatches.xc
-            yc      = listPatches.yc
-            zc      = listPatches.zc
+            x0       = listPatches.x0
+            y0       = listPatches.y0
+            z0       = listPatches.z0
+            W        = listPatches.W
+            L        = listPatches.L
+            strike   = listPatches.strike
+            dip      = listPatches.dip
+            kode     = listPatches.kode
+            ss       = listPatches.ss
+            ds       = listPatches.ds
+            ts       = listPatches.ts
+            xc       = listPatches.xc
+            yc       = listPatches.yc
+            zc       = listPatches.zc
+            fcode    = listPatches.fcode
+            sdrop    = listPatches.sdrop
+            rhoLitho = listPatches.rhoLitho
+            rhoFluid = listPatches.rhoFluid
+            C        = listPatches.C
+            mu       = listPatches.mu
             if group0 is None: # i.e. if no group was specified
                 group2add  = listPatches.group # take the one preexisting
             else:
@@ -643,22 +633,28 @@ class PatchCollection:
         else:
             raise TypeError('The input Collection of Patch should be either a list of Patch objects of a PatchCollection instance.')
         # concatenate
-        self.ids    = np.arange(self.nop)
-        self.x0     = np.concatenate((self.x0, x0))
-        self.y0     = np.concatenate((self.y0, y0))
-        self.z0     = np.concatenate((self.z0, z0))
-        self.L      = np.concatenate((self.L, L))
-        self.W      = np.concatenate((self.W, W))
-        self.strike = np.concatenate((self.strike, strike))
-        self.dip    = np.concatenate((self.dip, dip))
-        self.kode   = np.concatenate((self.kode, kode))
-        self.ss     = np.concatenate((self.ss, ss))
-        self.ds     = np.concatenate((self.ds, ds))
-        self.ts     = np.concatenate((self.ts, ts))
-        self.xc     = np.concatenate((self.xc, xc))
-        self.yc     = np.concatenate((self.yc, yc))
-        self.zc     = np.concatenate((self.zc, zc))
-        self.group  = np.concatenate((self.group, group2add), dtype=np.int32)
+        self.ids      = np.arange(self.nop)
+        self.x0       = np.concatenate((self.x0, x0))
+        self.y0       = np.concatenate((self.y0, y0))
+        self.z0       = np.concatenate((self.z0, z0))
+        self.L        = np.concatenate((self.L, L))
+        self.W        = np.concatenate((self.W, W))
+        self.strike   = np.concatenate((self.strike, strike))
+        self.dip      = np.concatenate((self.dip, dip))
+        self.kode     = np.concatenate((self.kode, kode))
+        self.ss       = np.concatenate((self.ss, ss))
+        self.ds       = np.concatenate((self.ds, ds))
+        self.ts       = np.concatenate((self.ts, ts))
+        self.xc       = np.concatenate((self.xc, xc))
+        self.yc       = np.concatenate((self.yc, yc))
+        self.zc       = np.concatenate((self.zc, zc))
+        self.group    = np.concatenate((self.group, group2add), dtype=np.int32)
+        self.fcode    = np.concatenate((self.fcode, fcode))
+        self.sdrop    = np.concatenate((self.sdrop, sdrop))
+        self.rhoLitho = np.concatenate((self.rhoLitho,rhoLitho))
+        self.rhoFluid = np.concatenate((self.rhoFluid,rhoFluid))
+        self.C        = np.concatenate((self.C,C))
+        self.mu       = np.concatenate((self.mu,mu))
 
     @property
     def shape(self):
@@ -675,69 +671,20 @@ class PatchCollection:
         return self.x0, self.y0, self.z0, \
                self.L, self.W, \
                self.strike, self.dip,\
-               self.kode, self.ss, self.ds, self.ts,
+               self.kode, self.ss, self.ds, self.ts
 
-    def plot3D(self, centers=False, refpts=False, figsize=(9,7), camera=(30,-45,0)):
-        plotFault3D(self, centers=centers, refpts=refpts, figsize=figsize, camera=camera)
+    def getFriction(self):
+        return {
+            'fcode':    self.fcode,
+            'sdrop':    self.sdrop,
+            'rhoLitho': self.rhoLitho,
+            'rhoFluid': self.rhoFluid,
+            'C':        self.C,
+            'mu':       self.mu
+            }
 
-
-    def link(self, a, name=None):
-        """
-        Link a new field to the PatchCollection and add it to the current list of linked fields.
-        """
-        self.im('Link a field to the dislocation collection')
-        # Import
-        if isinstance(a, ElementDisplacement):
-            wall = a.moving_wall
-            if a.shape == self.shape:
-                if a.x is None or a.y is None or a.z is None:
-                    a.convert2xyz(self.strike, self.dip)    # generate the x,y,z displacements
-                # take only the xyz array
-                a = a.array_xyz
-            else:
-                raise TypeError('Error in the shape of the input ElementDisplacement.')
-            if name is None:
-                name = wall+' displacement'
-        else:
-            raise TypeError('Unkown type for the input.')
-        # Append:
-        self.v.append(a)
-        self.vnames.append(name)
-        # End
-        self.im('Field linked!')
-        self.im('  - name:  '+str(name))
-        self.im('  - shape: '+str(a.shape))
-    
-
-    def removeField(self, i):
-        """
-        Remove the field number i.
-        
-        Args:
-            i (int): index of the field to remove
-        """
-        old_name = self.vnames[i]
-        self.v.pop(i)
-        self.vnames.pop(i)
-        self.im("Field number %s, '%s' was removed"%(str(i), old_name))
-    
-
-    def export2paraview(self, fname, path='./'):
-        """
-        Export the current patch collection structure and the linked field(s) in XDMF and HDF5 files.
-        """
-        self.im('Exportation of the data and structure of the PatchCollection instance to XDMF+HDF5 files for Paraview')
-        if len(self.v) == 0:
-            self.im('Empty field: Export point IDs')
-            v = np.arange(self.nop).reshape(self.shape)
-            self.link(v, 'pointID')
-        self.im('Fields exported:')
-        if self.verbose:
-            for i in range(len(self.v)):
-                self.im("  - '%s'"%(self.vnames[i]))
-        # Call the function
-        patches2paraview(fname, self, self.v, fieldnames=self.vnames, path=path)
-
+    def plot3D(self, **kwargs):
+        plotFault3D(self, **kwargs)
 
 
 

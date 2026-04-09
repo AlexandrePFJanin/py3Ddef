@@ -12,15 +12,10 @@ from matplotlib.collections import PolyCollection
 from matplotlib.colors import Normalize
 import h5py
 from pathlib import Path
-from copy import deepcopy
 
 # Internal dependencies
 from .generics import im
 from .geotransform import displacement_sdt_to_xyz, normal2fault
-from . import GridScalar, GridVector, GridTensor, \
-                    GridDisplacement, GridStress, GridStrain, \
-                    GridPrincipalStrainOrientation, \
-                    GridOptimalFailurePlane, GridDisplacementGradient
 
 
 # ----------------- FUNCTIONS -----------------
@@ -28,39 +23,101 @@ from . import GridScalar, GridVector, GridTensor, \
 
 def plotFault2D(patches, patchIDs=None, group=None,\
                 v=None, normal=True, refID=0,\
-                view_vec=None, cmap="viridis",\
+                view_vec=None, cmap=plt.cm.viridis,\
                 vmin=None, vmax=None,\
-                vec=None, vec_scale=1e2, vec_width=2e-3, vec_color='k',\
-                edgecolor="k", linewidth=0.2,\
+                patches2hatch=None,hatchColor='white',\
+                center=True,center_size=30,center_color='white',\
+                vec=None, vec_scale=1e2, vec_width=4e-3, vec_color='k',\
+                vec_decim=1, edgecolor="k", linewidth=0.2,\
                 figsize=(10, 4), cbar_title=None,\
                 aspect='equal',invert_xaxis=False, invert_yaxis=False,\
                 title='Fault patches (projected view)',\
                 xlabel='Projected X', ylabel='Projected Y',
-                verbose=True):
+                show=True,savefig=False,fname='myFigure.png',path='./',\
+                dpi=300,verbose=True):
     """
     Fast 2D plot of fault patches projected onto a plane
     orthogonal to a given 3D vector.
 
     Args:
         patches (PatchCollection object):
-            Fault patches
-        v (array-like or None):
-            Values to color patches
-        normal (bool):
-            Condition plot the collection of patches
-            in a plane normal of the normal to the 1st patch.
-            Normal computed with the function fault2normal.
-        view_vec (array-like, shape (3,) or None):
-            3D vector defining projection direction.
-            If not None, take the priority over the argument 'normal'
-        cmap (str):
-            Matplotlib colormap
-        edgecolor (str):
-            Patch edge color
-        linewidth (float):
-            Patch edge linewidth
-        figsize (tuple):
-            Shape of the figure. Default: (7, 5)
+                Fault patches
+        patchIDs (None or numpy.ndarray, dtype=int, optional):
+                List of patch IDs that will be display.
+                The others will be ignored.
+                (Default, None)
+        group (None, int, list, optional):
+                Display only the patches of the asked group:
+                If None then, display all the group (default)
+                If int displays only the patches of this group
+                If list displays the pathces of all the groups listed
+        v (array-like or None, optional):
+                Values to color patches (e.g. Displacement)
+                (Defaults: None)
+        normal (bool, optional):
+                Condition to plot the collection of patches
+                in a plane normal to the normal to the patch number 'refID'.
+                Normal computed with the function fault2normal.
+                (Defaults: True)
+        refID (int, optional):
+                ID of the reference patch when normal is set to True.
+                (Defaults: refID = 0)
+        view_vec (array-like, shape (3,) or None, optional):
+                3D vector defining projection direction.
+                If not None, take the priority over the argument 'normal'
+                (Default: None)
+        cmap (matplotlib.colors.ListedColormap, optional):
+                Matplotlib colormap when v is not None
+                (Default: matplotlib.pyplot.cm.viridis)
+        vmin (scalar, optional):
+                minimum value for the color map. When None, set automatically
+                (Default=None)
+        vmax (scalar, optional):
+                maximum value for the color map. When None, set automatically
+                (Default=None)
+        vec (py3Ddef.ElementStrDispl or None, optional):
+                Vectorial field to be display as a quiver.
+                The shape as to be the same as the geometry of the input PatchCollection
+                (Default: None)
+        vec_scale (scalar, optional):
+                Scale of the quiver when vec is not None. (Default: 1e2)
+        vec_width (scalar, optional):
+                Width of the quiver when vec is not None. (Default: 2e-3)
+        vec_color (str, optional):
+                Color of the quiver when vec is not None. (Default: 'k')
+        vec_decim (int, optional):
+                Decimation factor to display the vectorial field.
+                Display 1 every 'vec_decim' vectors.
+                (Default: vec_decim=1, i.e. no decimation)
+        edgecolor (str, optional):
+                Patch edge color (Default: 'k')
+        linewidth (float, optional):
+                Patch edge linewidth. (Default, 0.2)
+        figsize (tuple, optional):
+                Shape of the figure. (Default: (7, 5))
+        cbar_title (str, optional):
+                Title of the colorbar
+        aspect (str, optional):
+                Aspect of the axis.
+                See options of matplotlib.pyplot axis.
+                (Default: 'equal')
+        invert_xaxis (bool, optional):
+                Option controlling the reversal of the x axis.
+                (Default: False)
+        invert_yaxis (bool, optional):
+                Option controlling the reversal of the y axis.
+                (Default: False)
+        title (str, optional):
+                Title of the figure
+                (Default, 'Fault patches (projected view)')
+        xlabel (str, optional):
+                Label of the x axis.
+                (Default: 'Projected X')
+        ylabel (str, optional):
+                Label of the y axis.
+                (Default: 'Projected Y')
+        verbose (bool, optional):
+                Option controlling the verbose output of the function
     """
     pName = 'plotFault2D'
     im('Projected 2D figure of the patch collection', pName, verbose)
@@ -118,13 +175,25 @@ def plotFault2D(patches, patchIDs=None, group=None,\
     e2 = np.cross(view_vec, e1)
 
     polygons = []
+    polygons_hatch = []
 
     if vec is not None:
+
+        if vec_decim < 1 or not isinstance(vec_decim, int):
+            raise TypeError('vec_decim must be an integer >=1')
+        mask_vec = np.zeros(vec.nop, dtype=bool)
+        mask_vec[::vec_decim] = True
 
         X, Y, U, V = [], [], [], []
 
     j = 0
     v2plot = []
+    v2plot_hatch = []
+    any_hatches = False
+
+    xc2display = []
+    yc2display = []
+
     im('Iterate on patches', pName, verbose)
     for el in patches.patches:
 
@@ -136,7 +205,7 @@ def plotFault2D(patches, patchIDs=None, group=None,\
             # Unit vectors
             s = np.array([np.sin(strike), np.cos(strike), 0.0])  # strike
             d = np.array([
-                np.cos(strike) * np.cos(dip),
+             np.cos(strike) * np.cos(dip),
             -np.sin(strike) * np.cos(dip),
             -np.sin(dip)
             ])  # dip (downward)
@@ -155,16 +224,28 @@ def plotFault2D(patches, patchIDs=None, group=None,\
                 for p in patch3d
             ]
 
-            polygons.append(patch2d)
+            if patches2hatch is None:
+                polygons.append(patch2d)
+                v2plot.append(v[j])
+            else:
+                polygons.append(patch2d)
+                v2plot.append(v[j])
+                if patches2hatch[j]:
+                    any_hatches = True
+                    polygons_hatch.append(patch2d)
+                    v2plot_hatch.append(v[j])
+            
+            if center:
+                p = np.array(el.center)
+                xc2display.append(np.dot(p, e1))
+                yc2display.append(np.dot(p, e2))
 
-            v2plot.append(v[j])
-
-            if vec is not None:
+            if vec is not None and mask_vec[j]:
 
                 element_j = patches.patches[j]
-                usj = vec.ss[j]
-                udj = vec.ds[j]
-                utj = vec.ts[j]
+                usj = vec.us[j]
+                udj = vec.ud[j]
+                utj = vec.un[j]
 
                 # Element center
                 p = np.array(el.center)
@@ -182,6 +263,7 @@ def plotFault2D(patches, patchIDs=None, group=None,\
 
         j += 1
 
+    # display the reprojected patches
     polycoll = PolyCollection(
         polygons,
         array=v2plot,
@@ -189,18 +271,37 @@ def plotFault2D(patches, patchIDs=None, group=None,\
         edgecolors=edgecolor,
         linewidths=linewidth
     )
-    
     polycoll.set_clim([vmin, vmax])
 
     im('Plot the patch collection', pName, verbose)
     ax.add_collection(polycoll)
 
-    im('Plot the displacement field', pName, verbose)
-    ax.quiver(X, Y, U, V,
-            scale=vec_scale,
-            width=vec_width,
-            color=vec_color,
-            zorder=1)
+    # if any hatched polygon, displayed on the top
+    if any_hatches:
+        polycoll_hatch = PolyCollection(
+            polygons_hatch,
+            array=v2plot_hatch,
+            cmap=cmap,
+            edgecolors=hatchColor,
+            linewidths=linewidth,
+            hatch='///'
+        )
+        vmin, vmax = polycoll.get_clim() # set the same vmin, vmax
+        polycoll_hatch.set_clim([vmin, vmax])
+        ax.add_collection(polycoll_hatch)
+
+    # plot quiver
+    if vec is not None:
+        im('Plot the displacement field', pName, verbose)
+        ax.quiver(X, Y, U, V,
+                scale=vec_scale,
+                width=vec_width,
+                color=vec_color,
+                zorder=1)
+    
+    # display the centers
+    if center:
+        ax.scatter(xc2display, yc2display, s=center_size, facecolors='None', edgecolors=center_color)
 
     # Autoscale
     all_xy = np.vstack([np.array(p) for poly in polygons for p in poly])
@@ -224,17 +325,52 @@ def plotFault2D(patches, patchIDs=None, group=None,\
 
     im('Figure: Done.', pName, verbose)
 
-    plt.show()
+    if savefig:
+        if path[-1] != '/':
+            path += '/'
+        fig.savefig(path+fname,dpi=dpi)
+
+    if show:
+        plt.show()
+    else:
+        plt.close()
 
 
 
-def plotFault3D(patches, centers=True, refpts= True, displayGroup=True, cmap=plt.cm.viridis, figsize=(9,7), camera=(30,-45,0), aspect='equal'):
+def plotFault3D(patches, centers=True, refpts= True, displayGroup=True,
+                cmap=plt.cm.viridis,figsize=(9,7),
+                camera=(30,-45,0), aspect='equal'):
     """
-    Plot 3D fault subpatches with arbitrary strike and dip.
+    Interactive display of a set of dislocation in 3D.
     
-    Parameters:
-        patches : list of dicts
-            Output from discretize_fault function
+    Args:
+        patches (py3Ddef.geometry.PatchCollection):
+                Patches that will be display in 3D
+        centers (bool, optional):
+                Option controlling the display of the centers of each patch.
+                (Default, True)
+        refpts (bool, optional):
+                Option controlling the display of the reference points of each patch.
+                (Default, True)
+        displayGroup (bool, optional):
+                Option controlling the display of each patch according to their group ID
+                Will color patches according to the value of their group.
+                (Default: True)
+        cmap (matplotlib.colors.ListedColormap, optional):
+                Matplotlib colormap used for the group when required.
+                (Default matplotlib.pyplot.cm.viridis)
+        figsize (tuple, optional):
+                Shape of the figure. (Default: (9, 7))
+        camera (list of length 3, optional):
+                Parameter for the default camara orientation in 3D
+                camera[0]: elevation
+                camera[1]: azimuth
+                camera[2]: roll
+                (Default: (30, -45, 0))
+        aspect (str, optional):
+                Aspect of the axis.
+                See options of matplotlib.pyplot axis.
+                (Default: 'equal')
     """
     fig = plt.figure(figsize=figsize)
     ax = fig.add_subplot(111, projection='3d')
@@ -400,6 +536,7 @@ def patches2paraview(fname, patches, fields=None, fieldnames=None, path='./'):
     # ---- Normalize fields input ----
     field_dict = {}
 
+    # Empty input field
     if len(fields) == 1 and fields[0] is None:
         fields = [np.ones(patches.shape, dtype=np.int32)]
         fieldnames = ['empty']
@@ -546,17 +683,8 @@ def patches2paraview(fname, patches, fields=None, fieldnames=None, path='./'):
 """)
 
 
-
-
-
 def grid2paraview(fname, grid, fields=[None], fieldnames=None, path='./', precision='Float'):
     """
-    Write XDMF + HDF5 files for ParaView visualization.
-
-    Parameters
-    ----------
-    filename : str
-        Base filename (without extension)
     precision : str
         "Float" or "Double"
     """
@@ -570,63 +698,13 @@ def grid2paraview(fname, grid, fields=[None], fieldnames=None, path='./', precis
     h5name = path2file.with_suffix(".h5").name
     xdmfname = path2file.with_suffix(".xdmf")
 
-    shape = grid.shape
     nx, ny, nz = grid.nx, grid.ny, grid.nz
     X, Y, Z = grid.xaxis, grid.yaxis, grid.zaxis
 
-    # empty fields
+    # Empty input field
     if len(fields) == 1 and fields[0] is None:
-        fields = [np.zeros(int(grid.nx * grid.ny * grid.nz), dtype=np.int32).reshape(grid.shape)]
+        fields = [np.ones(grid.shape, dtype=np.int32)]
         fieldnames = ['empty']
-    
-    # deepcopy of the fields
-    fields = deepcopy(fields)
-
-    # -------------------------
-    # Restructure fields
-    # -------------------------
-
-    # The idea is to homogeneise the type: only GridScalar, GridVector, GridTensor
-    for i in range(len(fields)):
-        field = fields[i]
-        old_shape = field.shape
-        # Vectorial fields
-        if isinstance(field, GridDisplacement):
-            field = GridVector(field.solution)
-        # Tensor fields
-        elif isinstance(field, GridStress) or isinstance(field, GridStrain) or \
-             isinstance(field, GridPrincipalStrainOrientation) or \
-             isinstance(field, GridOptimalFailurePlane) or \
-             isinstance(field, GridDisplacementGradient):
-            field = GridTensor(field.solution)
-        # Scalar fields
-        elif isinstance(field, GridScalar):
-            pass
-        else:
-            raise TypeError('Unknown input type for the field number %s'%str(i))
-        # restore the original shape
-        field.reshape(old_shape)
-        fields[i] = field # update
-    
-    for i in range(len(fields)):
-        field = fields[i]
-        # check shape and return array
-        if field.shape == shape:
-            myarray = field.array
-            if len(myarray.shape) == 5: # tensor
-                myarray = myarray.reshape(shape + (9,))
-            fields[i] = myarray
-        else:
-            raise ValueError('The input field %s does not have a shape compatible with the input grid'%fieldnames[i])
-
-        # transpose to have the same convention as Paraview (nz, ny, nx, ncomponent)
-        if len(fields[i].shape) == 3: # scalair
-            fields[i] = np.transpose(fields[i], (2, 1, 0))
-        elif len(fields[i].shape) == 4: # vector or tensor
-            fields[i] = np.transpose(fields[i], (2, 1, 0, 3))
-        else:
-            raise ValueError('The input field %s does not have a shape compatible with the input grid'%fieldnames[i])
-        
 
     # -------------------------
     # Write HDF5
@@ -684,9 +762,15 @@ def grid2paraview(fname, grid, fields=[None], fieldnames=None, path='./', precis
             if field.ndim == 3:
                 atype = "Scalar"
                 dims = f"{nz} {ny} {nx}"
-            elif field.ndim == 4 and field.shape[-1] == 3:
+            elif field.ndim == 4 and field.shape[-1] == 3:  # displacement vector
                 atype = "Vector"
                 dims = f"{nz} {ny} {nx} 3"
+            elif field.ndim == 4 and field.shape[-1] == 4:  # stress/strain invariants
+                atype = "Vector"
+                dims = f"{nz} {ny} {nx} 4"
+            elif field.ndim == 4 and field.shape[-1] == 6:  # optimal failure place
+                atype = "Vector"
+                dims = f"{nz} {ny} {nx} 6"
             elif field.ndim == 4 and field.shape[-1] == 9:
                 atype = "Tensor"
                 dims = f"{nz} {ny} {nx} 9"
