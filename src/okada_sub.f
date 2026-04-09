@@ -47,7 +47,7 @@ C-----
 	RETURN
       ENDIF
       DO 111 L=1,3
-        DO 111 I=1,12                                                     
+        DO 111 I=1,12
         U  (I,L)=F0                                                        
         DU (I,L)=F0                                                        
         DUA(I,L)=F0                                                       
@@ -151,50 +151,50 @@ C-----
   
 C=====                                                                  
       DO 440 L=1,3
-      UXX(L)	=U(4,L)                                                          
-      UYX(L)	=U(5,L)                                                          
-      UZX(L)	=U(6,L)                                                          
-      UXY(L)	=U(7,L)                                                          
-      UYY(L)	=U(8,L)                                                          
-      UZY(L)	=U(9,L)                                                          
-      UXZ(L)	=U(10,L)                                                         
-      UYZ(L)	=U(11,L)                                                         
-440   UZZ(L)	=U(12,L)                                                         
+      UXX(L)=U(4,L)                                                          
+      UYX(L)=U(5,L)                                                          
+      UZX(L)=U(6,L)                                                          
+      UXY(L)=U(7,L)                                                          
+      UYY(L)=U(8,L)                                                          
+      UZY(L)=U(9,L)                                                          
+      UXZ(L)=U(10,L)                                                         
+      UYZ(L)=U(11,L)                                                         
+440   UZZ(L)=U(12,L)                                                         
 
-      UX1	=U(1,1)                                                           
-      UY1	=U(2,1)                                                           
-      UZ1	=U(3,1)                                                           
-      UX2	=U(1,2)                                                           
-      UY2	=U(2,2)                                                           
-      UZ2	=U(3,2)                                                           
-      UX3	=U(1,3)                                                           
-      UY3	=U(2,3)                                                           
-      UZ3	=U(3,3)                                                           
+      UX1=U(1,1)                                                           
+      UY1=U(2,1)                                                           
+      UZ1=U(3,1)                                                           
+      UX2=U(1,2)                                                           
+      UY2=U(2,2)                                                           
+      UZ2=U(3,2)                                                           
+      UX3=U(1,3)                                                           
+      UY3=U(2,3)                                                           
+      UZ3=U(3,3)                                                           
       IRET=0                                                            
       RETURN                                                      
 
 C=======================================                                
 C=====  IN CASE OF SINGULAR (R=0)  =====                                
 C=======================================                                
-99    UX1	=F0                                                           
-      UY1	=F0                                                           
-      UZ1	=F0                                                           
-      UX2	=F0                                                          
-      UY2	=F0                                                           
-      UZ2	=F0                                                           
-      UX3	=F0                                                           
-      UY3	=F0                                                           
-      UZ3	=F0                                                           
+99    UX1=F0                                                           
+      UY1=F0                                                           
+      UZ1=F0                                                           
+      UX2=F0                                                          
+      UY2=F0                                                           
+      UZ2=F0                                                           
+      UX3=F0                                                           
+      UY3=F0                                                           
+      UZ3=F0                                                           
       DO 441 L=1,3
-      UXX(L)	=F0                                                            
-      UYX(L)	=F0                                                            
-      UZX(L)	=F0                                                            
-      UXY(L)	=F0                                                            
-      UYY(L)	=F0                                                            
-      UZY(L)	=F0                                                            
-      UXZ(L)	=F0                                                            
-      UYZ(L)	=F0                                                            
-441   UZZ(L)	=F0                                                            
+      UXX(L)=F0                                                            
+      UYX(L)=F0                                                            
+      UZX(L)=F0                                                            
+      UXY(L)=F0                                                            
+      UYY(L)=F0                                                            
+      UZY(L)=F0                                                            
+      UXZ(L)=F0                                                            
+      UYZ(L)=F0                                                            
+441   UZZ(L)=F0
       write(*,'(a)') ' DEPTH,X,Y,Z,SD,CD,P,Q,ET,XI'
       write(*,*) DEPTH,X,Y,Z,SD,CD,P,Q,ET,XI
       IRET=1                                                            
@@ -219,12 +219,12 @@ C
       COMMON /C0/ALP1,ALP2,ALP3,ALP4,ALP5,SD,CD,
      &           SDSD,CDCD,SDCD,S2D,C2D  
       COMMON /C2/XI2,ET2,Q2,R,R2,R3,R5,Y,D,TT,ALX,ALE,  
-     &           X11,Y11,X32,Y32,EY,EZ,FY,FZ,GY,GZ,HY,HZ                                
-      DATA F0,F2,PI2/0.D0,2.D0,6.283185307179586D0/                     
+     &           X11,Y11,X32,Y32,EY,EZ,FY,FZ,GY,GZ,HY,HZ
+      DATA F0,F2,PI2/0.D0,2.D0,6.283185307179586D0/
 C-----                                                                  
       DO 111 L=1,3
-       DO 111  I=1,12                                                    
-  111 U(I,L)=F0                                                           
+       DO 111  I=1,12 
+  111 U(I,L)=F0
       XY=XI*Y11                                                     
       QX=Q *X11                                                         
       QY=Q *Y11                                                         
@@ -238,15 +238,15 @@ C======================================
       U(5,1)=           (-ALP2*XI*Q/R3)/PI2                                  
       U(6,1)= (ALP1*XY  +ALP2*XI*Q2*Y32)/PI2                               
       U(7,1)= (ALP1*XY*SD        
-     1          	+ALP2*XI*FY+D/F2*X11)/PI2                  
+     1              +ALP2*XI*FY+D/F2*X11)/PI2                  
       U(8,1)=           (ALP2*EY)/PI2                              
       U(9,1)= (ALP1*(CD/R+QY*SD) 
-     1		        -ALP2*Q*FY)/PI2                            
+     1                  -ALP2*Q*FY)/PI2                            
       U(10,1)=(ALP1*XY*CD        
-     1			+ALP2*XI*FZ+Y/F2*X11)/PI2                  
+     1                  +ALP2*XI*FZ+Y/F2*X11)/PI2                  
       U(11,1)=          (ALP2*EZ)/PI2                              
       U(12,1)=(-ALP1*(SD/R-QY*CD) 
-     1			-ALP2*Q*FZ)/PI2                            
+     1                  -ALP2*Q*FZ)/PI2                            
 C======================================                                 
 C=====    DIP-SLIP CONTRIBUTION   =====                                 
 C======================================                                 
@@ -258,14 +258,14 @@ C======================================
       U(6,2)=  (ALP1/R   +ALP2*Q2/R3)/PI2                                      
       U(7,2)=            (ALP2*EY)/PI2                            
       U(8,2)=  (ALP1*D*X11+XY/F2*SD 
-     1		        +ALP2*ET*GY)/PI2                         
+     1                  +ALP2*ET*GY)/PI2                         
       U(9,2)=  (ALP1*Y*X11         
      1                  -ALP2*Q*GY)/PI2                          
       U(10,2)=          (ALP2*EZ)/PI2                            
       U(11,2)= (ALP1*Y*X11+XY/F2*CD 
-     1		        +ALP2*ET*GZ)/PI2                         
+     1                    +ALP2*ET*GZ)/PI2                         
       U(12,2)=(-ALP1*D*X11      
-     1		        -ALP2*Q*GZ)/PI2                          
+     1                    -ALP2*Q*GZ)/PI2                          
 C========================================                               
 C=====  TENSILE-FAULT CONTRIBUTION  =====                               
 C========================================                               
@@ -342,8 +342,8 @@ C-----
       
 C===== 
       DO 111 L=1,3 
-      DO 111  I=1,12                                                    
-  111 U(I,L)=F0                                                          
+      DO 111  I=1,12
+  111 U(I,L)=F0
       QX=Q*X11                                                          
       QY=Q*Y11                                                          
       
@@ -414,7 +414,7 @@ C***** OUTPUT
 C*****   U(12,3) : DISPLACEMENT AND THEIR DERIVATIVES                     
 C                                                                       
       COMMON /C0/ALP1,ALP2,ALP3,ALP4,ALP5,SD,CD,
-     &		 SDSD,CDCD,SDCD,S2D,C2D  
+     &           SDSD,CDCD,SDCD,S2D,C2D  
       COMMON /C2/XI2,ET2,Q2,R,R2,R3,R5,Y,D,TT,ALX,ALE,  
      *           X11,Y11,X32,Y32,EY,EZ,FY,FZ,GY,GZ,HY,HZ                                
       DATA F0,F1,F2,F3,PI2/0.D0,1.D0,2.D0,3.D0,6.283185307179586D0/     
@@ -442,34 +442,34 @@ C-----
       
 C===== 
       DO 111 L=1,3 
-      DO 111  I=1,12                                                    
-  111 U(I,L)=F0                                                  
+      DO 111  I=1,12
+  111 U(I,L)=F0
   
 C======================================                                 
 C=====  STRIKE-SLIP CONTRIBUTION  =====                                 
 C======================================                                 
       U(1,1)= (ALP4*XY*CD           
-     &		  -ALP5*XI*Q*Z32)/PI2                     
+     &              -ALP5*XI*Q*Z32)/PI2                     
       U(2,1)= (ALP4*(CD/R+F2*QY*SD) 
-     &		  -ALP5*C*Q/R3)/PI2                       
+     &              -ALP5*C*Q/R3)/PI2                       
       U(3,1)= (ALP4*QY*CD           
-     &		  -ALP5*(C*ET/R3-Z*Y11+XI2*Z32))/PI2      
+     &              -ALP5*(C*ET/R3-Z*Y11+XI2*Z32))/PI2      
       U(4,1)= (ALP4*Y0*CD                  
-     &		  -ALP5*Q*Z0)/PI2                  
+     &              -ALP5*Q*Z0)/PI2                  
       U(5,1)=(-ALP4*XI*(CD/R3+F2*Q*Y32*SD) 
-     &		  +ALP5*C*XI*QR)/PI2               
+     &              +ALP5*C*XI*QR)/PI2               
       U(6,1)=(-ALP4*XI*Q*Y32*CD            
-     &		  +ALP5*XI*(F3*C*ET/R5-QQ))/PI2    
+     &              +ALP5*XI*(F3*C*ET/R5-QQ))/PI2    
       U(7,1)=(-ALP4*XI*PPY*CD    -ALP5*XI*QQY)/PI2                          
       U(8,1)= (ALP4*F2*(D/R3-Y0*SD)*SD-Y/R3*CD                         
      &            -ALP5*(CDR*SD-ET/R3-C*Y*QR))/PI2           
       U(9,1)=(-ALP4*Q/R3+YY0*SD  
-     &	      +ALP5*(CDR*CD+C*D*QR-(Y0*CD+Q*Z0)*SD))/PI2 
+     &            +ALP5*(CDR*CD+C*D*QR-(Y0*CD+Q*Z0)*SD))/PI2 
       U(10,1)= (ALP4*XI*PPZ*CD    -ALP5*XI*QQZ)/PI2                          
       U(11,1)= (ALP4*F2*(Y/R3-Y0*CD)*SD+D/R3*CD 
-     &		  -ALP5*(CDR*CD+C*D*QR))/PI2   
+     &            -ALP5*(CDR*CD+C*D*QR))/PI2   
       U(12,1)=         (YY0*CD    
-     &	     -ALP5*(CDR*SD-C*Y*QR-Y0*SDSD+Q*Z0*CD))/PI2  
+     &         -ALP5*(CDR*SD-C*Y*QR-Y0*SDSD+Q*Z0*CD))/PI2  
 
 C======================================                                 
 C=====    DIP-SLIP CONTRIBUTION   =====                                 
@@ -478,21 +478,21 @@ C======================================
       U(2,2)= (ALP4*Y*X11       -ALP5*C*ET*Q*X32)/PI2                       
       U(3,2)=     (-D*X11-XY*SD -ALP5*C*(X11-Q2*X32))/PI2                   
       U(4,2)=(-ALP4*XI/R3*CD 
-     &		+ALP5*C*XI*QR +XI*Q*Y32*SD)/PI2                
+     &            +ALP5*C*XI*QR +XI*Q*Y32*SD)/PI2                
       U(5,2)=(-ALP4*Y/R3     +ALP5*C*ET*QR)/PI2                             
       U(6,2)= (D/R3-Y0*SD +ALP5*C/R3*(F1-F3*Q2/R2))/PI2                  
       U(7,2)=(-ALP4*ET/R3+Y0*SDSD 
-     &		 -ALP5*(CDR*SD-C*Y*QR))/PI2                
+     &            -ALP5*(CDR*SD-C*Y*QR))/PI2                
       U(8,2)= (ALP4*(X11-Y*Y*X32) 
-     &		 -ALP5*C*((D+F2*Q*CD)*X32-Y*ET*Q*X53))/PI2 
+     &            -ALP5*C*((D+F2*Q*CD)*X32-Y*ET*Q*X53))/PI2 
       U(9,2)=  (XI*PPY*SD+Y*D*X32 
-     &		 +ALP5*C*((Y+F2*Q*SD)*X32-Y*Q2*X53))/PI2   
+     &            +ALP5*C*((Y+F2*Q*SD)*X32-Y*Q2*X53))/PI2   
       U(10,2)=      (-Q/R3+Y0*SDCD 
-     &		 -ALP5*(CDR*CD+C*D*QR))/PI2                
+     &            -ALP5*(CDR*CD+C*D*QR))/PI2                
       U(11,2)= (ALP4*Y*D*X32       
-     & 		-ALP5*C*((Y-F2*Q*SD)*X32+D*ET*Q*X53))/PI2 
+     &            -ALP5*C*((Y-F2*Q*SD)*X32+D*ET*Q*X53))/PI2 
       U(12,2)=(-XI*PPZ*SD+X11-D*D*X32
-     &		-ALP5*C*((D-F2*Q*CD)*X32-D*Q2*X53))/PI2 
+     &            -ALP5*C*((D-F2*Q*CD)*X32-D*Q2*X53))/PI2 
 
 C========================================                               
 C=====  TENSILE-FAULT CONTRIBUTION  =====                               
@@ -500,19 +500,19 @@ C========================================
       U(1,3)=(-ALP4*(SD/R+QY*CD)   -ALP5*(Z*Y11-Q2*Z32))/PI2                
       U(2,3)= (ALP4*F2*XY*SD+D*X11 -ALP5*C*(X11-Q2*X32))/PI2                
       U(3,3)= (ALP4*(Y*X11+XY*CD)  
-     &		+ALP5*Q*(C*ET*X32+XI*Z32))/PI2           
+     &            +ALP5*Q*(C*ET*X32+XI*Z32))/PI2           
       U(4,3)= (ALP4*XI/R3*SD+XI*Q*Y32*CD
-     &		+ALP5*XI*(F3*C*ET/R5-F2*Z32-Z0))/PI2
+     &            +ALP5*XI*(F3*C*ET/R5-F2*Z32-Z0))/PI2
       U(5,3)= (ALP4*F2*Y0*SD-D/R3 +ALP5*C/R3*(F1-F3*Q2/R2))/PI2             
       U(6,3)=(-ALP4*YY0           -ALP5*(C*ET*QR-Q*Z0))/PI2                 
       U(7,3)= (ALP4*(Q/R3+Y0*SDCD)   
-     &		+ALP5*(Z/R3*CD+C*D*QR-Q*Z0*SD))/PI2    
+     &            +ALP5*(Z/R3*CD+C*D*QR-Q*Z0*SD))/PI2    
       U(8,3)=(-ALP4*F2*XI*PPY*SD-Y*D*X32                               
-     &       	+ALP5*C*((Y+F2*Q*SD)*X32-Y*Q2*X53))/PI2            
+     &            +ALP5*C*((Y+F2*Q*SD)*X32-Y*Q2*X53))/PI2            
       U(9,3)=(-ALP4*(XI*PPY*CD-X11+Y*Y*X32)                            
      &          +ALP5*(C*((D+F2*Q*CD)*X32-Y*ET*Q*X53)+XI*QQY))/PI2 
       U(10,3)=  (-ET/R3+Y0*CDCD 
-     &		-ALP5*(Z/R3*SD-C*Y*QR-Y0*SDSD+Q*Z0*CD))/PI2  
+     &            -ALP5*(Z/R3*SD-C*Y*QR-Y0*SDSD+Q*Z0*CD))/PI2  
       U(11,3)= (ALP4*F2*XI*PPZ*SD-X11+D*D*X32                           
      &          -ALP5*C*((D-F2*Q*CD)*X32-D*Q2*X53))/PI2            
       U(12,3)= (ALP4*(XI*PPZ*CD+Y*D*X32)                                

@@ -1,12 +1,20 @@
 	SUBROUTINE COMPUTE3DDEF(xg,yg,zg,xdis,ydis,zdis,
      &              length_dis,width_dis,strike_dis,dip_dis,
      &              input_kode,input_ss,input_ds,input_ts,
+     &              input_fcode,input_sdrop,input_rhoLitho,
+     &              input_rhoFluid,input_cohes,input_disfric,
      &              input_V,input_E,input_friction,
+     &              oflag_orient,oflag_invariant,
+     &              oflag_failure,oflag_ugrad,
+     &              oflag_debug,
+     &              maxiter,tolsolver,
      &              input_BG_flag,input_BG,
      &              npts,ndis,
      &              inlout_displ,inlout_stress,inlout_strain,
-     &              inlout_orient,inlout_failure,inlout_elements,
-     &              inlout_ugrad)
+     &              inlout_orient,inlout_failure,
+     &              inlout_invariant,inlout_ugrad,
+     &              inlout_elements,inlout_fstatus,
+     &              solutionStatus)
 C******************************************************************************
 C Program to calculate the deformation field using a 3-D
 C boundary element algorithm.
@@ -113,327 +121,367 @@ C  and tmaxa, each determined in subroutine TOPLANEa. tmaxo are components along
 C  x and y for QUIVER in MATLAB, and tmaxa is the pitch angle (or rake) of tmax.
 C
 C****************************************************************************
-C      include array dimensions
-		INCLUDE 'sizes.inc'
-C      Include file for unit numbers
-		
+C     load module for global arrays: Added A.JANIN 13.02.2026
+      use global_arrays
+      use global_outputs
+      use global_inputs
 
 C Material constants
-C      Lame parameter (lambda)
-		REAL*4 DMULT
-C      1-(Vp/Vs)**2 = (lambda+mu)/(lambda+2*mu)
-		REAL*4 ALPHA
-C      rigidity
-		REAL*4 XMU
-C      2*rigidity
-		REAL*4 XMU2
-		COMMON/CONSTANTS/ALPHA,XMU,XMU2,DMULT
-
-C Reserved space for b.c. (boundary condition) codes, and b.c.s
-		INTEGER*4 ISPACE
-		REAL*4 	SPACE
-		COMMON/BCS/ISPACE(MAX_ELEM),SPACE(MAX_ELEM*3)
+C     Lame parameter (lambda)
+      REAL*4 DMULT
+C     1-(Vp/Vs)**2 = (lambda+mu)/(lambda+2*mu)
+      REAL*4 ALPHA
+C     rigidity
+      REAL*4 XMU
+C     2*rigidity
+      REAL*4 XMU2
+      COMMON/CONSTANTS/ALPHA,XMU,XMU2,DMULT
 
 C Displacement and stress tensors, temporary storage for 
 C influence coefficient matrices' calculations
 C      matrix for displacements
-		REAL*4 DSPL 
+      REAL*4 DSPL 
 C      matrix for stresses
-		REAL*4 STR
-		COMMON/TEMPS/DSPL(3,3),STR(6,3)
+      REAL*4 STR
+      COMMON/TEMPS/DSPL(3,3),STR(6,3)
 
 C Displacement and stress tensors, storage for 
 C influence coefficient matrices' calculations
-		REAL*4 UCOEF 
-		REAL*4 SCOEF
-		COMMON/COEFS/ UCOEF(3,3),SCOEF(6,3)
+      REAL*4 UCOEF 
+      REAL*4 SCOEF
+      COMMON/COEFS/ UCOEF(3,3),SCOEF(6,3)
 C ** Added to main program on Aug. 29, 2000
 C  Displacement gradient tensor values
-		REAL*4 DGRAD
-		COMMON/DGRADS/DGRAD(3,3,3)
-
-C Influence coefficient matrix; last column contains the 
-C b.c.s and then the solution (relative displacements)
-		REAL*4 XMATRIX
-		COMMON/SOLN/XMATRIX(MAX3_ELEM,MAX3_ELEM+1)
-
-C Displacement and stress transformation matrices from
-C global to planar (in plane) coordinates
-C	displacement transformation matrix for each plane 
-		REAL*4 UG2P
-C	stress transformation matrix for each plane 
-	REAL*4 SG2P
-			COMMON/TRANS/UG2P(3,3,MAX_PLN),SG2P(3,6,MAX_PLN)
-
-C Element descriptor parameters; for each plane
-C       X,Y,Z reference point in global coordinates
-	REAL*4 XO,YO,ZO
-C	cosine & sine of the strike (cw wrt N)
-	REAL*4 C,S
-C	dip (wrt horizontal), cosine & sine of the dip
-	REAL*4 DIP,CDIP,SDIP 
-C	sub-element widths in the strike & dip directions
-	REAL*4 BWX1,BWX2
-C	number of sub-elements in the strike & dip directions
-	INTEGER*4 NBX1,NBX2
-   		COMMON/DEFS/XO(MAX_PLN),YO(MAX_PLN),ZO(MAX_PLN),
-     &   C(MAX_PLN),S(MAX_PLN),DIP(MAX_PLN),
-     &             CDIP(MAX_PLN),SDIP(MAX_PLN),
-     &             BWX1(MAX_PLN),BWX2(MAX_PLN),
-     &		   NBX1(MAX_PLN),NBX2(MAX_PLN)
+      REAL*4 DGRAD
+      COMMON/DGRADS/DGRAD(3,3,3)
 		
 C Common blocks s for Okada's routines
-			REAL*8 ALP1,ALP2,ALP3,ALP4,ALP5,SD,CD,
+      REAL*8 ALP1,ALP2,ALP3,ALP4,ALP5,SD,CD,
+     &       SDSD,CDCD,SDCD,S2D,C2D  
+      COMMON /C0/ALP1,ALP2,ALP3,ALP4,ALP5,SD,CD,
      &           SDSD,CDCD,SDCD,S2D,C2D  
-			COMMON /C0/ALP1,ALP2,ALP3,ALP4,ALP5,SD,CD,
-     &           SDSD,CDCD,SDCD,S2D,C2D  
-			REAL*8 XI2,ET2,Q2,R,R2,R3,R5,Y,D,TT,ALX,ALE,  
-     &           X11,Y11,X32,Y32,EY,EZ,FY,FZ,GY,GZ,HY,HZ 
-			COMMON /C2/XI2,ET2,Q2,R,R2,R3,R5,Y,D,TT,ALX,ALE,  
-     &           X11,Y11,X32,Y32,EY,EZ,FY,FZ,GY,GZ,HY,HZ                                
+      REAL*8 XI2,ET2,Q2,R,R2,R3,R5,Y,D,TT,ALX,ALE,  
+     &       X11,Y11,X32,Y32,EY,EZ,FY,FZ,GY,GZ,HY,HZ 
+      COMMON /C2/XI2,ET2,Q2,R,R2,R3,R5,Y,D,TT,ALX,ALE,  
+     &       X11,Y11,X32,Y32,EY,EZ,FY,FZ,GY,GZ,HY,HZ                                
 		
 C  Common blocks for output routines
-	REAL*4 STRESS,EWE,dgrten,FRICTION,tmax,tmaxo,tmaxa
-	COMMON/MIKE/STRESS(6),EWE(3),dgrten(3,3),V,E,FRICTION,
+      REAL*4 STRESS,EWE,dgrten,FRICTION,tmax,tmaxo,tmaxa
+      COMMON/MIKE/STRESS(6),EWE(3),dgrten(3,3),V,E,FRICTION,
      &  tmax,tmaxo(2),tmaxa
 
-	REAL*4 SSTRIKE,CSTRIKE,SDYP,CDYP
-	COMMON/TOPLN/SSTRIKE,CSTRIKE,SDYP,CDYP
+      REAL*4 SSTRIKE,CSTRIKE,SDYP,CDYP
+      COMMON/TOPLN/SSTRIKE,CSTRIKE,SDYP,CDYP
 
 C  Flag and common block for background deformation field
-	CHARACTER*4 BFLAG
-	REAL*4 BSTRESS
-	COMMON/BKGRND/BSTRESS(9),BFLAG
+      CHARACTER*4 BFLAG
+      REAL*4 BSTRESS
+      COMMON/BKGRND/BSTRESS(9),BFLAG
 
-C  Common blocks for output options
-	logical o_elem,o_stress,o_strain,o_dgrad,o_rbr,
-     & 	o_orient,o_disp,o_inv,xyz_out,o_fail,o_proj
-		character*24 sufx
-	common/outputs/sufx,o_elem,o_stress,o_strain,o_dgrad,
-     &  o_rbr,o_orient,o_disp,o_inv,xyz_out,o_fail,o_proj
+C Added by Alex. JANIN 16.06.24, define the input/output arguments of COMPUTE3DDEF
+      integer npts, ndis
+      real*8, intent(in)  :: xg(npts), yg(npts), zg(npts)
+      real*8, intent(out) :: inlout_displ(npts,3)
+      real*8, intent(out) :: inlout_stress(npts,6)
+      real*8, intent(out) :: inlout_strain(npts,6)
+      real*8, intent(out) :: inlout_failure(npts,6)
+      real*8, intent(out) :: inlout_orient(npts,9)
+      real*8, intent(out) :: inlout_invariant(npts,4)
+      real*8, intent(out) :: inlout_ugrad(npts,3,3)
+      real*8, intent(out) :: inlout_elements(ndis,12)
+      integer*4, intent(out) :: inlout_fstatus(ndis)
+      integer*4, intent(out) :: solutionStatus(2)
+      real*4, intent(in)  :: xdis(ndis), ydis(ndis), zdis(ndis)
+      real*4, intent(in)  :: length_dis(ndis), width_dis(ndis)
+      real*4, intent(in)  :: strike_dis(ndis), dip_dis(ndis)
+      integer, intent(in) :: input_kode(ndis)
+      real*4, intent(in)  :: input_sdrop(ndis)
+      real*4, intent(in)  :: input_rhoLitho(ndis)
+      real*4, intent(in)  :: input_rhoFluid(ndis)
+      real*4, intent(in)  :: input_cohes(ndis)
+      real*4, intent(in)  :: input_disfric(ndis)
+      integer, intent(in) :: input_fcode(ndis)
+      integer accepted_kod(12)
+      real*4, intent(in)  :: input_ss(ndis), input_ds(ndis)
+      real*4, intent(in)  :: input_ts(ndis)
+      real*4, intent(in)  :: input_V, input_E, input_friction
+      integer*4, intent(in) :: maxiter
+      real*4, intent(in)    :: tolsolver
+      character*4, optional :: input_BG_flag
+      real*4, optional      :: input_BG(9)
 
-C Added by Alex. JANIN 16.06.24, define the computation grid ('stations')
-	integer npts, ndis
-	real*8, intent(in)  :: xg(npts), yg(npts), zg(npts)
-	real*8, intent(out) :: inlout_displ(npts,3)
-	real*8, intent(out) :: inlout_stress(npts,6)
-	real*8, intent(out) :: inlout_strain(npts,6)
-	real*8, intent(out) :: inlout_failure(npts,6)
-	real*8, intent(out) :: inlout_orient(npts,9)
-	real*8, intent(out) :: inlout_ugrad(npts,3,3)
-	real*8, intent(out) :: inlout_elements(ndis,6)
-	real*4, intent(in)  :: xdis(ndis), ydis(ndis), zdis(ndis)
-	real*4, intent(in)  :: length_dis(ndis), width_dis(ndis)
-	real*4, intent(in)  :: strike_dis(ndis), dip_dis(ndis)
-	integer, intent(in) :: input_kode(ndis)
-	integer accepted_kod(12)
-	real*4, intent(in)  :: input_ss(ndis), input_ds(ndis)
-	real*4, intent(in)  :: input_ts(ndis)
-	real*4, intent(in)  :: input_V, input_E, input_friction
-	character*4, optional :: input_BG_flag
-	real*4, optional      :: input_BG(9)
+      logical :: oflag_orient
+      logical :: oflag_invariant
+      logical :: oflag_failure
+      logical :: oflag_ugrad
+      logical :: oflag_debug
 
-C c.meertens 24feb93
-c line flag and user coordinates
-		real*8 xu,yu,zu
-		common/ucoordr/xu(maxco),yu(maxco),zu(maxco)
+      INTEGER*4 :: MAX_ELEM
 
-C       scaling from degrees to radians
-			DATA TORAD/.0174532925199/
+C   scaling from degrees to radians
+      DATA TORAD/.0174532925199/
 
-		accepted_kod = [1,2,3,4,5,6,10,11,12,13,14,15]
-C       ------- SUBROUTINE START ---------
+C   ------- SUBROUTINE START ---------
 
-		PRINT*, ''
-		PRINT*, ' ------ COMPUTE3DDEF ------------------------'
-		print*, ''
-		NPLANE = ndis
-		V = input_V
-		E = input_E
-		FRICTION = input_friction
+      MAX_ELEM = ndis
 
-		if (present(input_BG_flag)) then
-			if (input_BG_flag.eq.'STRE'.or.input_BG_flag.eq.'stre') then
-				BFLAG = 'STRE'
-			elseif (input_BG_flag.eq.'STRA'.or.input_BG_flag.eq.'stra') then
-				BFLAG = 'STRA'
-			elseif (input_BG_flag.eq.'DISP'.or.input_BG_flag.eq.'disp') then
-				BFLAG = 'DISP'
-			else
-				BFLAG = 'NONE'
-			endif
-		else
-			BFLAG = 'N'
-		endif
+      accepted_kod = [1,2,3,4,5,6,10,11,12,13,14,15]
 
-		print*, ' MATERIAL PROPERTIES:'
-		write(*,100) NPLANE,V,E,FRICTION
+      ! Load output flags in the module
+      o_orient    = oflag_orient
+      o_invariant = oflag_invariant
+      o_failure   = oflag_failure
+      o_ugrad     = oflag_ugrad
+
+      ! Dynamic allocation of global array & output sizes
+      CALL allocate_global_arrays(npts,ndis)
+      CALL allocate_global_outputs(npts,ndis)
+      CALL allocate_global_inputs(ndis)
+      debug = oflag_debug ! export to global module
+
+      ! Transfer grid data
+      xfgrid = xg
+      yfgrid = yg
+      zfgrid = zg
+
+      ! Transfer input b.c.s and frictional parameters
+      i_kode    = input_kode
+      i_ss      = input_ss
+      i_ds      = input_ds
+      i_ts      = input_ts
+      i_fcode   = input_fcode
+      i_sdrop   = input_sdrop
+      i_rhoLitho = input_rhoLitho
+      i_rhoFluid = input_rhoFluid
+      i_cohes   = input_cohes
+      i_disfric = input_disfric
+
+      ! Transfer friction solver parameter
+      i_maxiter   = maxiter
+      i_tolsolver = tolsolver
+
+      PRINT*, ''
+      PRINT*, ' ------ COMPUTE3DDEF ------------------------'
+      print*, ''
+
+      NPLANE = ndis
+      V = input_V
+      E = input_E
+      FRICTION = input_friction
+
+      if (present(input_BG_flag)) then
+          if (input_BG_flag.eq.'STRE'.or. 
+     &        input_BG_flag.eq.'stre') then
+              BFLAG = 'STRE'
+          elseif (input_BG_flag.eq.'STRA'.or. 
+     &            input_BG_flag.eq.'stra') then
+              BFLAG = 'STRA'
+          elseif (input_BG_flag.eq.'DISP'.or. 
+     &            input_BG_flag.eq.'disp') then
+              BFLAG = 'DISP'
+          else
+              BFLAG = 'NONE'
+          endif
+      else
+          BFLAG = 'N'
+      endif
+
+      print*, ' MATERIAL PROPERTIES:'
+      write(*,100) NPLANE,V,E,FRICTION
  100  FORMAT('   -> PLANES=',I2,' POISSIONS RATIO=',
      1      F5.3,' YOUNGS MOD: ',G10.4,' COEF. FRICTION=',F5.3)
-		
+
 C    - Calculate needed material constants
 C      1-(Vs/Vp)**2 = (lambda+mu)/(lambda+2*mu)
-		ALPHA=.5/(1.-V)
-C      rigidity
-		XMU=E*.5/(1.+V)
-		XMU2=XMU*2.
-		DMULT=V/(1.-2.*V)
+      ALPHA=.5/(1.-V)
+C     rigidity
+      XMU=E*.5/(1.+V)
+      XMU2=XMU*2.
+      DMULT=V/(1.-2.*V)
 
 C       Added by JANIN
-		PRINT*, ''
-		PRINT*, ' SIZE OF THE COMPUTATION GRID:'
-		PRINT*, '   -> ',npts
+      PRINT*, ''
+      PRINT*, ' SIZE OF THE COMPUTATION GRID:'
+      PRINT*, '   -> ',npts
 
 C    - Check input KODE: Added by A.JANIN
-		DO I=1,ndis
-			if (any(input_kode(I)==accepted_kod)) then
-				CONTINUE
-			else
-				print*, ''
-				print*, ' ===================== ERROR ====================='
-				print*, ' >>  ERROR IN THE INPUT KODE OF THE ELEMENT: ', I
-				print*, '     AVAILABLE VALUES ARE:'
-				print*, accepted_kod
-				print*, ' >>  PROGRAM INTERRUPTED'
-				print*, ' ================================================='
-				STOP
-			endif
-		ENDDO
+      DO I=1,ndis
+          if (any(input_kode(I)==accepted_kod)) then
+              CONTINUE
+          else
+              print*, ''
+              print*, ' ================= ERROR ================='
+              print*, ' >>  ERROR IN KODE OF THE ELEMENT: ', I
+              print*, '     AVAILABLE VALUES ARE:'
+              print*, accepted_kod
+              print*, ' >>  PROGRAM INTERRUPTED'
+              print*, ' ========================================='
+              STOP
+          endif
+      ENDDO
 
 C    - Read in background deformation if desired
-		IF(BFLAG.EQ.'STRE'.OR.BFLAG.EQ.'stre') then
-C		read in background stresses
-			DO J=1,6
-				BSTRESS(J) = input_BG(J)
-			END DO
-			DO J=7,9
-				BSTRESS(J) = 0.
-			END DO
-		ELSEIF(BFLAG.EQ.'STRA'.OR.BFLAG.EQ.'stra') then
-C		read in background strains
-			DO J=1,6
-				BSTRESS(J) = input_BG(J)
-			END DO
-			DO J=7,9
-				BSTRESS(J) = 0.
-			END DO
-C			convert to stresses &  read in background strains, rotations
-			CALL FROM_STRAIN
-		ELSEIF(BFLAG.EQ.'DISP'.OR.BFLAG.EQ.'disp') then
-C		read in background displacement gradients
-			DO J=1,9
-				BSTRESS(J) = input_BG(J)
-			END DO
-			print*, ' INIT BACKGROUND DEFORMATION: ', BSTRESS
-C			convert to stresses and rotations
-			CALL FROM_DISPL
-		ELSE
-			DO J=1,9
-				BSTRESS(J) = 0.
-			END DO
-		ENDIF
+      IF(BFLAG.EQ.'STRE'.OR.BFLAG.EQ.'stre') then
+C         read in background stresses
+          DO J=1,6
+              BSTRESS(J) = input_BG(J)
+          END DO
+          DO J=7,9
+              BSTRESS(J) = 0.
+          END DO
+      ELSEIF(BFLAG.EQ.'STRA'.OR.BFLAG.EQ.'stra') then
+C         read in background strains
+          DO J=1,6
+              BSTRESS(J) = input_BG(J)
+          END DO
+          DO J=7,9
+              BSTRESS(J) = 0.
+          END DO
+C         convert to stresses &  read in background strains, rotations
+          CALL FROM_STRAIN
+      ELSEIF(BFLAG.EQ.'DISP'.OR.BFLAG.EQ.'disp') then
+C         read in background displacement gradients
+          DO J=1,9
+              BSTRESS(J) = input_BG(J)
+          END DO
+          print*, ' INIT BACKGROUND DEFORMATION: ', BSTRESS
+C         convert to stresses and rotations
+          CALL FROM_DISPL
+      ELSE
+          DO J=1,9
+              BSTRESS(J) = 0.
+          END DO
+      ENDIF
 
-		print*, ''
-		print*, ' BACKGROUND DEFORMATION: ', BFLAG
-		print*, '   -> ',BSTRESS
+      print*, ''
+      print*, ' BACKGROUND DEFORMATION: ', BFLAG
+      print*, '   -> ',BSTRESS
 C *** Read in the element structure of each plane ***      
-		
-		print*, ''
-		print*, ' PLANE DETAILS:'
-			write(*,300)
- 300  	FORMAT(
-     1 	'  PLANE-ID   ORG:XO      YO      ZO    ',
-     2 	' WD:STK     DIP    #SUB-EL:STK DIP  ',
-     3 	'STK    DIP')
 
-C	counter for max number of sub-elements along strikes
-			MAXB1=0
-C	counter for max number of sub-elements along dips
-			MAXB2=0
-		
-		DO  N=1,NPLANE
-C   -   For each plane:
-			
-			X = xdis(N)
-			Y = ydis(N)
-			Z = zdis(N)
-			W_STK = length_dis(N)
-			W_DIP = width_dis(N)
-C           NBX1 and NBX2 set fixed to 1 for the wrapping by A.JANIN
-			NBX1(N) = 1
-			NBX2(N) = 1
-			STRIKE  = strike_dis(N)
-			DIP(N)  = dip_dis(N)
-C           - Convert to sub-element widths internally
-			BWX1(N)=W_STK/NBX1(N)
-			BWX2(N)=W_DIP/NBX2(N)
-C           - Calculate sines and cosines of the strike and dip	
-			DP=DIP(N)*TORAD
-			CDIP(N)=COS(DP)
-			SDIP(N)=SIN(DP)
-				if(DIP(N).EQ.180) SDIP(N)=0
-				if(DIP(N).EQ.180) CDIP(N)=-1
-			STK=STRIKE*TORAD
-			C(N)=COS(STK)
-			S(N)=SIN(STK)
-C           - Internally the origin is the lower left corner of the plane
-			TMP=W_DIP*CDIP(N)
-			XO(N)=X+TMP*C(N)
-			YO(N)=Y-TMP*S(N)
-C	        - reference Z point is positive
-			ZO(N)=-(Z-W_DIP*SDIP(N))
+      print*, ''
+      print*, ' PLANE DETAILS:'
+      write(*,300)
+ 300  FORMAT(
+     1      '  PLANE-ID   ORG:XO      YO      ZO    ',
+     2      ' WD:STK     DIP    #SUB-EL:STK DIP  ',
+     3      'STK    DIP')
+
+C     counter for max number of sub-elements along strikes
+      MAXB1=0
+C     counter for max number of sub-elements along dips
+      MAXB2=0
+      
+      ! Global detection of any frictional element
+      any_frictional = .FALSE.  ! Init
+
+      ! Iterate on each plane
+      DO  N=1,NPLANE
+
+          ! Added A.JANIN 12.03.26: frictional status
+          IF (i_fcode(N) .GT. 0 .AND. input_kode(N) .EQ. 2) THEN
+              ! Frictional element
+              any_frictional = .TRUE.
+              element_fstatus(N) = -1 ! frictional but not determined
+          ELSEIF (i_fcode(N) .GT. 0 .AND. input_kode(N) .NE. 2) THEN
+              ! Raise an error and stop the program
+              print*, ''
+              print*, ' ================= ERROR ================='
+              print*, ' >>  ERROR IN KODE OF THE ELEMENT: ', N
+              print*, ' THE ELEMENT IS DEFINED AS FRICTIONAL'
+              print*, ' (FCODE>0) AND THEREFORE IS ONLY'
+              print*, ' COMPATIBLE WITH KODE=2 AND B.C.S'
+              print*, ' REFLECTING PRE-EXISITING STRESSES.'
+              print*, ' >>  PROGRAM INTERRUPTED'
+              print*, ' ========================================='
+              STOP
+          ELSE
+              element_fstatus(N) = -2 ! not frictional
+          ENDIF
+
+          X = xdis(N)
+          Y = ydis(N)
+          Z = zdis(N)
+          W_STK = length_dis(N)
+          W_DIP = width_dis(N)
+C         NBX1 and NBX2 set fixed to 1 for the wrapping by A.JANIN
+          NBX1(N) = 1
+          NBX2(N) = 1
+          STRIKE  = strike_dis(N)
+          DIP(N)  = dip_dis(N)
+C         Convert to sub-element widths internally
+          BWX1(N)=W_STK/NBX1(N)
+          BWX2(N)=W_DIP/NBX2(N)
+C         Calculate sines and cosines of the strike and dip	
+          DP=DIP(N)*TORAD
+          CDIP(N)=COS(DP)
+          SDIP(N)=SIN(DP)
+          IF(DIP(N).EQ.180) SDIP(N)=0
+          IF(DIP(N).EQ.180) CDIP(N)=-1
+          STK=STRIKE*TORAD
+          C(N)=COS(STK)
+          S(N)=SIN(STK)
+C         Internally the origin is the lower left corner of the plane
+          TMP=W_DIP*CDIP(N)
+          XO(N)=X+TMP*C(N)
+          YO(N)=Y-TMP*S(N)
+C         reference Z point is positive
+          ZO(N)=-(Z-W_DIP*SDIP(N))
 	
-			write(*,200) N,X,Y,Z,W_STK,W_DIP,
+          write(*,200) N,X,Y,Z,W_STK,W_DIP,
      1            NBX1(N),NBX2(N),STRIKE,DIP(N)
- 200    	FORMAT(1x,I2,7x,3(f7.2,1x),3x,2g7.2,9X,I2,
+ 200      FORMAT(1x,I4,7x,3(f7.2,1x),3x,2g7.2,9X,I2,
      1                 2x,I2,3x,F6.2,1X,F6.2)
 
-C           - Find maximum number of sub-elements in each direction for 
-C           array dimensioning flexibility
-			MAXB1=MAX0(NBX1(N),MAXB1)
-			MAXB2=MAX0(NBX2(N),MAXB2)
+C         Find maximum number of sub-elements in each direction for 
+C         array dimensioning flexibility
+          MAXB1=MAX0(NBX1(N),MAXB1)
+          MAXB2=MAX0(NBX2(N),MAXB2)
 
-C           - Calculate the transformation matrices to convert the 
-C           influence coefficient matrices from global to in-plane coordinates
-	  		CALL MK_TRANS(N,S(N),C(N),SDIP(N),CDIP(N))
-		END DO
+C         Calculate the transformation matrices to convert the 
+C         influence coefficient matrices from global to in-plane coordinates
+          CALL MK_TRANS(N,S(N),C(N),SDIP(N),CDIP(N))
 
-C     - Check that the dimensions are not exceeded 
-		ITOTAL=MAXB1*MAXB2*NPLANE
+          ! Compute the Z coordinate of the center of the patch
+          ZCE(N) = Z - 0.5*SDIP(N)*W_DIP
+      END DO
 
-		IF(ITOTAL.GT.MAX_ELEM) THEN
-			print *,'Dimensions exceeded'
-			print *,'Continue anyway......CAUTION!!!!!!!'
-
-		ENDIF
-		IF (NPLANE.GT.MAX_PLN) THEN
-			PRINT *,'NUMBER OF PLANES EXCEEDS MAX_PLN'
-		ENDIF
+C     Check that the dimensions are not exceeded 
+      ITOTAL=MAXB1*MAXB2*NPLANE
 
 C   - Finish the remaining calculations in a subroutine to
 C     allow flexibility in how planes and sub-elements are specified.
-		CALL DO_ALL(MAXB1,MAXB2,NPLANE,ISPACE,SPACE,
-     &              input_kode,input_ss,input_ds,input_ts,
-     &              xg,yg,zg,
-     &              inlout_displ,inlout_stress,inlout_strain,
-     &              inlout_orient,inlout_failure,inlout_elements,
-     &              inlout_ugrad,
-     &              npts,ndis)
+      CALL DO_ALL(MAXB1,MAXB2,NPLANE,ISPACE,SPACE,
+     &            input_kode,input_ss,input_ds,input_ts,
+     &            npts,ndis)
 
-	 PRINT*, '--------------------------------------------'
-	 PRINT*, ''
- 
+      PRINT*, '--------------------------------------------'
+      PRINT*, ''
+
+      ! Transfer data from global output arrays to output fields 
+      inlout_displ     = goutarray_displ
+      inlout_stress    = goutarray_stress
+      inlout_strain    = goutarray_strain
+      inlout_failure   = goutarray_failure
+      inlout_orient    = goutarray_orient
+      inlout_invariant = goutarray_invariant
+      inlout_ugrad     = goutarray_ugrad
+      inlout_elements  = goutarray_elements
+      inlout_fstatus   = element_fstatus
+      solutionStatus   = codeStatus
+
+C     deallocate allocated memory to avoid memory leak in ipython terminal
+      call deallocate_global_arrays()
+      call deallocate_global_outputs()
+      call deallocate_global_inputs()
+      
       RETURN
-	  END  
+      END
+
 		 
 
       SUBROUTINE DO_ALL(MAXB1,MAXB2,NPLANE,KODE,BC,                        
      &              input_kode,input_ss,input_ds,input_ts,
-     &              xg,yg,zg,
-     &              inlout_displ,inlout_stress,inlout_strain,
-     &              inlout_orient,inlout_failure,inlout_elements,
-     &              inlout_ugrad,
-     &              npts,ndis) 
+     &              npts,ndis)
 
 C******************************************************************************
 C  This routine controls all the calculating now that almost everything 
@@ -441,40 +489,30 @@ C  is read in.  It is separated from the main program so that the numbers
 C  of planes and sub-elements is flexible (array dimensions of KODE
 C  defined via variables passed from the main routine).
 C******************************************************************************
-      INCLUDE 'sizes.inc'
 
+      use global_arrays
+      use global_outputs
+      use global_inputs
+
+      INTEGER*4 FIXED, NUME, NUM_Ds
+      INTEGER*4 FIXED_INIT, NUME_INIT, NUM_Ds_INIT
 C   - FIXED =-1 if all elements have fixed rel. displ.
-C           =0 if no elements have fixed rel. displ.	  
-C           =1 if some but not all elements have fixed rel. displ.	  
-	INTEGER*4 FIXED
+C           = 0 if no elements have fixed rel. displ.
+C           = 1 if some but not all elements have fixed rel. displ.
 
-	REAL*4 XMATRIX
-      	COMMON/SOLN/XMATRIX(MAX3_ELEM,MAX3_ELEM+1)
+      INTEGER*4 MAXB1, MAXB2, NPLANE
+      INTEGER*4 NITER
+      LOGICAL CONVERGED
+      REAL*4 tol
 
-	REAL*4 XO,YO,ZO,C,S,DIP,CDIP,SDIP,BWX1,BWX2
-      	INTEGER*4 NBX1,NBX2
-	COMMON/DEFS/XO(MAX_PLN),YO(MAX_PLN),ZO(MAX_PLN),
-     &		   C(MAX_PLN),S(MAX_PLN),DIP(MAX_PLN),
-     &             CDIP(MAX_PLN),SDIP(MAX_PLN),
-     &             BWX1(MAX_PLN),BWX2(MAX_PLN),
-     &		   NBX1(MAX_PLN),NBX2(MAX_PLN)
+C     boundary condition (b.c.) code
+      INTEGER*4 KODE
+C     b.c. in strike,dip,normal (tensile) directions
+      REAL*4 BC
+      DIMENSION KODE(MAXB1,MAXB2,NPLANE),BC(3,MAXB1,MAXB2,NPLANE)
 
-C	boundary condition (b.c.) code
-	INTEGER*4 KODE
-C	b.c. in strike,dip,normal (tensile) directions
-	REAL*4 BC
-      	DIMENSION KODE(MAXB1,MAXB2,NPLANE),BC(3,MAXB1,MAXB2,NPLANE)
-
-C  Added by A.JANIN
+C     Added by A.JANIN
       integer npts, ndis
-      real*8, intent(in)  :: xg(npts), yg(npts), zg(npts)
-	  real*8, intent(out) :: inlout_displ(npts,3)
-	  real*8, intent(out) :: inlout_stress(npts,6)
-	  real*8, intent(out) :: inlout_strain(npts,6)
-	  real*8, intent(out) :: inlout_failure(npts,6)
-	  real*8, intent(out) :: inlout_orient(npts,9)
-	  real*8, intent(out) :: inlout_ugrad(npts,3,3)
-	  real*8, intent(out) :: inlout_elements(ndis,6)
 	  integer, intent(in) :: input_kode(ndis)
 	  real*4, intent(in)  :: input_ss(ndis), input_ds(ndis)
 	  real*4, intent(in)  :: input_ts(ndis)
@@ -482,9 +520,12 @@ C  Added by A.JANIN
 C     initially assume all elements have fixed rel. displ.
       FIXED = -1
 
-	  PRINT*, ''
-	  PRINT*, ' PLANE-ID,  SUBX-ID,  SUBY-ID,  KODE,  StrikeSlip,',
-     1 '  DipSlip,  TensileSlip:' 
+      IF (any_frictional) THEN
+          PRINT*, ''
+          PRINT*, ' PLANE-ID,  KODE,  taus_i,',
+     1 '  taud_i,  sigman_i,  FCODE,  SDROP,  C,  mu,  ',
+     1 'rhoLitho,  rhoFluid' 
+      ENDIF
 
       DO 10 N=1,NPLANE
 			
@@ -503,9 +544,14 @@ C       		some or no elements have unconstrained rel. displ.
 					FIXED = 0
 				ENDIF
 
-				WRITE(*,100) N,I,J,KODE(I,J,N),
-     &	            BC(1,I,J,N),BC(2,I,J,N),BC(3,I,J,N)
-100     		FORMAT(1X,I3,4X,I3,2X,I3,4X,I3,2X,3(G15.4,1X))
+                IF (any_frictional) THEN
+                    WRITE(*,100) N,KODE(I,J,N),
+     &              BC(1,I,J,N),BC(2,I,J,N),BC(3,I,J,N),
+     &              i_fcode(N),i_sdrop(N),i_cohes(N),i_disfric(N),
+     &              i_rhoLitho(N),i_rhoFluid(N)
+
+100                 FORMAT(I4,1X,I3,1X,3(G12.4),1X,I3,1X,5(G12.4))
+                ENDIF
 
 11				IF(KODE(I,J,N).EQ.11)
      &	 		    CALL RESOLVE(BC(1,I,J,N),BC(2,I,J,N))
@@ -522,26 +568,108 @@ C       	some or no elements have fixed rel. displ. but not all
 12        	CONTINUE
         ENDIF
 		
-C *** 	Calculate influence coefficient matrix
-	    IF(FIXED.GE.0) CALL CALCUL(NUME,MAXB1,MAXB2,NPLANE,KODE)
+C     *** Calculate influence coefficient matrix
+      IF (FIXED.GE.0) THEN
+          CALL CALCUL(NUME,MAXB1,MAXB2,NPLANE,KODE)
+          ! save the original coefficent matrix in AMATRIX
+          AMATRIX = XMATRIX(:, 1:3*NDIS)
+      ENDIF
 	  
-C *** 	Solve for shear and normal displacement discontinuities.
-     	CALL SOLVE(NUME,NUM_Ds,FIXED,MAXB1,MAXB2,NPLANE,KODE,BC)
+      ! Before any iterations, solve the initial b.c.s. parameters:
+      ! will be restored and reinjected in the SOLVE routine.
+      NUME_INIT   = NUME
+      NUM_Ds_INIT = NUM_Ds
+      FIXED_INIT  = FIXED
+      NUM_Ds_SAVED= 0
 
-		PRINT*, ''
-		PRINT*, 'SOLVING ON THE GRID'
-		PRINT*, ''
+      ! equalize the frictional status
+      element_iter_fstatus = element_fstatus
 
-      	CALL GRID(NUM_Ds,NPLANE,xg,yg,zg,inlout_displ,
-     &              inlout_stress,inlout_strain,
-     &              inlout_orient,inlout_failure,inlout_elements,
-     &              inlout_ugrad,
-     &              npts)     
+C     *** Solve for shear and normal displacement discontinuities.
+      ! Added A.JANIN 20.03.2026 Iterative scheme for frictional elements
+      IF (any_frictional) THEN
+          CONVERGED = .FALSE.
+          goutflag_converged = .FALSE.
+          NITER = 1
+          DO WHILE (.NOT.CONVERGED .AND. NITER.LE.i_maxiter)
+              WRITE(*,*) ''
+              WRITE(*,'(A,I0,A)') '=== ITERATION ', NITER, ' ==='
+              CALL SOLVE(NUME,NUM_Ds,FIXED,MAXB1,MAXB2,NPLANE,KODE,BC)
+              ! Superposition of the displacements
+              IF (NITER.EQ.1) THEN
+                  DVECI = DVEC           ! init with every displacement
+              ELSE
+                  CALL update_DVEC2(KODE(1,1,:))
+                  CALL sum_DVECI_DVEC2() ! avoid repeating fixed relative displacement already included
+              ENDIF
+              if (debug) then
+                  ! -> Visualize the current state of the displacement vector
+                  WRITE(*,*) ''
+                  WRITE(*,*) ' [DEBUG] (Current displacement vector)'
+                  CALL print_DVECI()
+              endif
+              ! Test the convergence: compute the maximum change in DVECI, have to be below tolsolver
+              tol = MAXVAL(ABS(DVECI - DVEC0)) ! tolerance
+              IF (tol.LE.i_tolsolver) THEN
+                  CONVERGED = .TRUE.
+                  goutflag_converged = .TRUE.
+                  WRITE(*,*) ''
+                  WRITE(*,*) 'ITERATIVE SOLVER REACHED CONVERGENCE!'
+                  WRITE(*,*) '  -> FINAL NITER =',NITER
+              ENDIF
+              ! Decision
+              IF (.NOT.CONVERGED .AND. NITER.LT.i_maxiter) THEN
+                  ! Reset
+                  NUME   = NUME_INIT
+                  NUM_Ds = NUM_Ds_INIT
+                  FIXED  = FIXED_INIT
+                  NUM_Ds_SAVED = 0
+                  ! Iterate
+              ENDIF
+              NITER  = NITER + 1
+              DVEC0  = DVECI
+          ENDDO
+          ! Update XMATRIX with the displacement from DVECI
+          CALL update_XMATRIX_DISPL_DVECI()
+          NITER = NITER-1
+          ! Fill the exiting code status vector
+          codeStatus(2) = NITER ! final Niter
+          IF (.NOT.CONVERGED) THEN
+              WRITE(*,*) ''
+              WRITE(*,*) '************* WARNING ***************'
+              WRITE(*,*) 'N-ITER MAX REACHED BEFORE CONVERGENCE'
+              WRITE(*,*) '*************************************'
+              codeStatus(1) = 0 ! converged?, 1=True ,0=No
+          ELSE
+              codeStatus(1) = 1 ! converged?, 1=True ,0=No
+          ENDIF
+          WRITE(*,*)
+          WRITE(*,*) '================='
+      ELSE
+          ! No frictional element, no iterative scheme
+          CALL SOLVE(NUME,NUM_Ds,FIXED,MAXB1,MAXB2,NPLANE,KODE,BC)
+          goutflag_converged = .TRUE.
+          ! Fill the exiting code status vector
+          codeStatus(1) = 1 ! converged?, 1=True ,0=No
+          codeStatus(2) = 1 ! final Niter
+      ENDIF
 
-		PRINT*, 'COMPUTE 3D DEFORMATIONS: DONE!'
+      PRINT*, ''
+      PRINT*, 'SOLVING ON THE GRID'
+      PRINT*, ''
 
-		RETURN
-      	END
+      CALL GRID(NUM_Ds,NPLANE,npts)
+
+      if (debug) then
+          ! -> Export the coeff matrix AMATRIX
+          !    before the inversion (with stress b.c.s)
+          call write_amatrix('amatrix')
+      endif
+
+      PRINT*, 'COMPUTE 3D DEFORMATIONS: DONE!'
+
+      RETURN
+      END
 
 
 	SUBROUTINE FROM_DISPL
@@ -613,28 +741,26 @@ C	scaling from degrees to radians
       	BSTRESS(6)=XMU2*(DILAT+BSTRESS(6))
 	  
 	DO 2 J=7,9
-2	BSTRESS(J)=TORAD*BSTRESS(J)
+2	    BSTRESS(J)=TORAD*BSTRESS(J)
 
 	RETURN
 	END
 
 	 
-   	SUBROUTINE MK_TRANS(NS,SSTK,CSTK,SDIP,CDIP)
+	SUBROUTINE MK_TRANS(NS,SSTK,CSTK,SDIP2,CDIP2)
 C******************************************************************************
 C--- 	Create transformation matrices (from global to local in-plane coordinates)
 C	 for plane NS.
 C******************************************************************************
-	INCLUDE 'sizes.inc'
+	
+	use global_arrays
 	  
 C	index of the current plane
 	INTEGER*4 NS
 C	sine & cosine of the strike of the NSth plane
 	REAL*4 SSTK,CSTK
 C	sine & cosine of the dip of the NSth plane	
-	REAL*4 SDIP,CDIP
-	  
-	REAL*4 UG2P,SG2P
-      	COMMON/TRANS/UG2P(3,3,MAX_PLN),SG2P(3,6,MAX_PLN)
+	REAL*4 SDIP2,CDIP2
 	
 C - 	UG2P(3,6,NS) transforms displacements from global coords to obtain
 C   	displacements in NS in-plane coords.
@@ -646,17 +772,17 @@ C				strike direction	dip direction
 C				strike direction	normal direction
       UG2P(1,3,NS)=0.
 C				dip direction		strike direction
-      UG2P(2,1,NS)=-CSTK*CDIP
+      UG2P(2,1,NS)=-CSTK*CDIP2
 C				dip direction		dip direction
-      UG2P(2,2,NS)=SSTK*CDIP
+      UG2P(2,2,NS)=SSTK*CDIP2
 C				dip direction		normal direction
-      UG2P(2,3,NS)=SDIP
+      UG2P(2,3,NS)=SDIP2
 C				normal direction	strike direction
-      UG2P(3,1,NS)=CSTK*SDIP
+      UG2P(3,1,NS)=CSTK*SDIP2
 C				normal direction	dip direction	
-      UG2P(3,2,NS)=-SSTK*SDIP
+      UG2P(3,2,NS)=-SSTK*SDIP2
 C				normal direction	normal direction
-      UG2P(3,3,NS)=CDIP
+      UG2P(3,3,NS)=CDIP2
 
 
 C - SG2P(3,6,NS) transforms stresses from global coords to obtain stresses
@@ -666,7 +792,7 @@ C							Sxz		Sxx
       SG2P(1,1,NS)=UG2P(3,1,NS)*UG2P(1,1,NS)
 C							Sxz		Sxy	
       SG2P(1,2,NS)=UG2P(3,1,NS)*UG2P(1,2,NS)+
-     &		       UG2P(3,2,NS)*UG2P(1,1,NS)
+     &             UG2P(3,2,NS)*UG2P(1,1,NS)
 C	    						Sxz		Sxz
       SG2P(1,3,NS)=UG2P(3,3,NS)*UG2P(1,1,NS)
 C							Sxz		Syy
@@ -694,17 +820,17 @@ C							Syz		Szz
 
 
 C							Szz		Szz
-      SG2P(3,1,NS)=UG2P(3,1,NS)*UG2P(3,1,NS)	
+      SG2P(3,1,NS)=UG2P(3,1,NS)*UG2P(3,1,NS)
 C							Szz		Szz
-      SG2P(3,2,NS)=2.*UG2P(3,1,NS)*UG2P(3,2,NS)	
+      SG2P(3,2,NS)=2.*UG2P(3,1,NS)*UG2P(3,2,NS)
 C							Szz		Szz
-      SG2P(3,3,NS)=2.*UG2P(3,1,NS)*UG2P(3,3,NS)	
+      SG2P(3,3,NS)=2.*UG2P(3,1,NS)*UG2P(3,3,NS)
 C							Szz		Szz
-      SG2P(3,4,NS)=UG2P(3,2,NS)*UG2P(3,2,NS)	
+      SG2P(3,4,NS)=UG2P(3,2,NS)*UG2P(3,2,NS)
 C							Szz		Szz
-      SG2P(3,5,NS)=2.*UG2P(3,2,NS)*UG2P(3,3,NS)	
+      SG2P(3,5,NS)=2.*UG2P(3,2,NS)*UG2P(3,3,NS)
 C							Szz		Szz
-      SG2P(3,6,NS)=UG2P(3,3,NS)*UG2P(3,3,NS)	
+      SG2P(3,6,NS)=UG2P(3,3,NS)*UG2P(3,3,NS)
 
       RETURN
       END
@@ -725,34 +851,35 @@ C******************************************************************************
 	  END
 
 
-      SUBROUTINE CALCUL(NUMEBC,MAXB1,MAXB2,NPLANE,KODE)
+	SUBROUTINE CALCUL(NUMEBC,MAXB1,MAXB2,NPLANE,KODE)
 C******************************************************************************
 C Subroutine to calculate influence coefs. These are placed in the matrix
 C  XMATRIX(NUMEBC,NUMEBC).
-C******************************************************************************
-      IMPLICIT REAL*8 (A-H,O-Z)
+C******************************************************************************  
+	
+	use global_arrays
 
-      INCLUDE 'sizes.inc'
-	  
-C     Lines added by MDB 11/02/2001 to run in LINUX
-C      REAL*8 XNP,YNP,ZNP,AL1,AL2,AW1,AW2
+	IMPLICIT NONE
 
-      REAL*4 XO,YO,ZO,C,S,DIP,CDIP,SDIP,BWX1,BWX2
-      INTEGER*4 NBX1,NBX2	       
-      COMMON/DEFS/XO(MAX_PLN),YO(MAX_PLN),ZO(MAX_PLN),
-     &		   C(MAX_PLN),S(MAX_PLN),DIP(MAX_PLN),
-     &             CDIP(MAX_PLN),SDIP(MAX_PLN),
-     &             BWX1(MAX_PLN),BWX2(MAX_PLN),
-     &		   NBX1(MAX_PLN),NBX2(MAX_PLN)
+	INTEGER*4 KODE, MAXB1, MAXB2, NPLANE
+	
+	DIMENSION KODE(MAXB1,MAXB2,NPLANE)
 
-      INTEGER*4 KODE
-      DIMENSION KODE(MAXB1,MAXB2,NPLANE)
-      
-      WRITE(*,'(A)')
+	INTEGER*4 NP, NS
+	INTEGER*4 JP, IP, IP2, JS, IS
+
+	REAL*8 BX1P, BX2P
+	REAL*8 XNP, ZNP, YNP
+	REAL*8 X, Y, Z
+	REAL*8 AL1, AL2, AW1, AW2
+    
+	INTEGER*4 NUMEBC, NUMED, IGRAD, IRET
+
+	WRITE(*,'(A)')
      &  ' BEGIN CALCULATION OF INFLUENCE COEFFICIENT MATRIX'    
 	  
-C     initialize number of boundary conditions
-      NUMEBC=0
+C   initialize number of boundary conditions
+	NUMEBC=0
       
 C For each plane NP	  
 C     *** loop over all planes ***
@@ -783,7 +910,7 @@ C	 initialize number of unknown displacement discont.s
 	 NUMED=0
 
 C        *** loop over NS planes ***	
-         DO 170 NS=1,NPLANE		
+         DO 170 NS=1,NPLANE
 					       
 C 	 - Define center of sub-element IP,JP,NP in local NS coords
 	 XNP=S(NS)*(X-XO(NS))+C(NS)*(Y-YO(NS))
@@ -797,7 +924,7 @@ C        on the minus side.  Added August 1999.
      &    .KODE(JP,IP,NP).eq.3.or
      &    .KODE(JP,IP,NP).eq.4.or
      &    .KODE(JP,IP,NP).eq.5.or
-     &    .KODE(JP,IP,NP).eq.6) YNP=YNP+1.e-4
+     &    .KODE(JP,IP,NP).eq.6) YNP=YNP+1.e-6 ! from 1e-4 to 1e-6, A.JANIN 13/03/2026
       		
 C	 *** loop over IS,JS sub-elements of plane NS ***
 	 DO 115 JS=1,NBX1(NS)
@@ -808,7 +935,7 @@ C        - sub-element length range along strike
   	 DO 115 IS=1,NBX2(NS)
 C        - sub-element width range along dip
     	 AW1=FLOAT(IS-1)*BWX2(NS)
-	 AW2=AW1+BWX2(NS)
+	     AW2=AW1+BWX2(NS)
 					  
 C	 - Calculate 6 stress and 3 displacement influence coefs in NS coords
 C	 Put these in arrays STR(6,3),DSPL(3,3)
@@ -827,7 +954,7 @@ C          planar NP coordinates.  Put these in arrays STR(3,3),DSPL(3,3)
 	
 C	 - Create influence coef. matrix appropriate to b.c.s 
 C          of sub-element IP,JP,NP
- 	 CALL MK_MATRIX(KODE(JP,IP,NP),NUMED,NUMEBC)	
+ 	 CALL MK_MATRIX(KODE(JP,IP,NP),NUMED,NUMEBC)
 
 C	 increment the displ. discont.s count
 	 NUMED=NUMED+3
@@ -853,414 +980,892 @@ C      *** end of loop over all planes ***
 
 
       SUBROUTINE SOLVE(NUME,NUM_Ds,FIXED,MAXB1,MAXB2,NPLANE,KODE,BC)
-C******************************************************************************
-C Subroutine to solve for the unknown relative displacement discontinuities.
-C******************************************************************************
-      INCLUDE 'sizes.inc'
+      ! **************************************************************************
+      ! Subroutine to solve for the unknown relative displacement discontinuities.
+      ! Rewritten in Fortran 90+ by A.JANIN 25.02.2026
+      ! **************************************************************************
+      use global_arrays
+      use global_inputs
       INTEGER*4 FIXED
-	  
-      INTEGER*4 KODE
+  
+      INTEGER*4 KODE, MAXB1, MAXB2, NPLANE, SIDE
       REAL*4 BC
       DIMENSION KODE(MAXB1,MAXB2,NPLANE),BC(3,MAXB1,MAXB2,NPLANE)
-      
-      REAL*4 XMATRIX
-      COMMON/SOLN/XMATRIX(MAX3_ELEM,MAX3_ELEM+1)
-
-      REAL*4 XO,YO,ZO,C,S,DIP,CDIP,SDIP,BWX1,BWX2
-      INTEGER*4 NBX1,NBX2
-      COMMON/DEFS/XO(MAX_PLN),YO(MAX_PLN),ZO(MAX_PLN),
-     &		   C(MAX_PLN),S(MAX_PLN),DIP(MAX_PLN),
-     &             CDIP(MAX_PLN),SDIP(MAX_PLN),
-     &             BWX1(MAX_PLN),BWX2(MAX_PLN),
-     &		   NBX1(MAX_PLN),NBX2(MAX_PLN)
 
       CHARACTER*4 BFLAG
       REAL*4 BSTRESS
       COMMON/BKGRND/BSTRESS(9),BFLAG
 
       DIMENSION BSTR(3)
+      
+      INTEGER(4) NUME, IBC, NP, I, J, K, JP, IP, L
 
-      REAL*4 UG2P,SG2P
-      COMMON/TRANS/UG2P(3,3,MAX_PLN),SG2P(3,6,MAX_PLN)
-	  
-C *** Save all initial boundary conditions - copy into 
-C     last column of XMATRIX      
+      ! Save all initial boundary conditions - copy into 
+      ! last column of XMATRIX
       IF(FIXED.GE.0) THEN
-C       index of column containing boundary conditions
-	NUMEP1=NUME+1
+          ! index of column containing boundary conditions
+          NUMEP1=NUME+1
       ELSE
-	NUMEP1=1
-	NUM_Ds=1
+          NUMEP1=1
+          NUM_Ds=1
+          NUM_Ds_SAVED = NUM_Ds ! keep track of NUM_Ds outside
       ENDIF
-		
-      IBC=0      
-C     *** loop over all planes ***
-      DO 20 NP=1,NPLANE
-		  
-C     *** correct for background stresses ***
-      IF(BFLAG(1:1).NE.'N') THEN
-C 	- Transform background stresses to in-plane NP coords
-  	DO 22 I=1,3      
-	BSTR(I)=0.
-	DO 22 K=1,6       
-22	BSTR(I)=SG2P(I,K,NP)*BSTRESS(K)+BSTR(I)
+
+      ! *** reset XMATRIX from AMATRIX ***
+      CALL reset_xmatrix()
+
+      IBC = 0
+
+      ! *** loop over all planes ***
+      DO NP = 1, NPLANE
+  
+          ! *** correct for background stresses ***
+          IF (BFLAG(1:1) .NE. 'N') THEN
+
+              ! Transform background stresses to in-plane NP coords
+              DO I = 1, 3
+                  BSTR(I) = 0.0
+                  DO K = 1, 6
+                      BSTR(I) = BSTR(I) + SG2P(I,K,NP) * BSTRESS(K)
+                  ENDDO
+              ENDDO
+
+          ELSE
+
+              DO I = 1, 3
+                  BSTR(I) = 0.0
+              ENDDO
+
+          ENDIF
+
+          ! *** Garantee KODE=2 for frictional elements ***
+          ! (KODE of frictional elements change after each iteration)
+          IF (i_fcode(NP) .GT. 0) THEN
+              ! Frictional element
+              KODE(1,1,NP) = 2      ! Restore KODE = 2
+              SIDE = -1             ! BC = external forces = initial (pre-existing/stored) stresses + background
+              ! Restore the B.C.S (inital/pre-existing stresses)
+              BC(1,1,1,NP) = i_ss(NP)
+              BC(2,1,1,NP) = i_ds(NP)
+              BC(3,1,1,NP) = i_ts(NP)
+          ELSE
+              SIDE = 1              ! substract the background stresses
+          ENDIF
+
+
+          ! *** loop over IP,JP sub-elements of plane NP ***
+          DO JP = 1, NBX1(NP)
+              DO IP = 1, NBX2(NP)
+
+                  IF (KODE(JP,IP,NP) .EQ. 2) THEN
+                      ! 3 stress b.c.s
+                      ! Modified A.JANIN 14/03/2026: added SIDE for frictional elements
+                      DO J = 1, 3
+                          BC(J,JP,IP,NP) = BC(J,JP,IP,NP) -
+     &                                     SIDE*BSTR(J)
+                      ENDDO
+
+                  ELSEIF (KODE(JP,IP,NP) .EQ. 3) THEN
+                      ! strike-shear & normal stress, dip displ. b.c.s
+                      BC(1,JP,IP,NP) = BC(1,JP,IP,NP) - BSTR(1)
+                      BC(3,JP,IP,NP) = BC(3,JP,IP,NP) - BSTR(3)
+
+                  ELSEIF (KODE(JP,IP,NP) .EQ. 4) THEN
+                      ! dip-shear & normal stress, strike displ. b.c.s
+                      BC(2,JP,IP,NP) = BC(2,JP,IP,NP) - BSTR(2)
+                      BC(3,JP,IP,NP) = BC(3,JP,IP,NP) - BSTR(3)
+
+                  ELSEIF (KODE(JP,IP,NP) .EQ. 5) THEN
+                      ! strike & dip-shear stresses, normal displ. b.c.s
+                      BC(2,JP,IP,NP) = BC(2,JP,IP,NP) - BSTR(2)
+                      BC(1,JP,IP,NP) = BC(1,JP,IP,NP) - BSTR(1)
+
+                  ELSEIF (KODE(JP,IP,NP) .EQ. 6) THEN
+                      ! strike & dip-shear displ, normal stress. b.c.s added by A.JANIN
+                      BC(3,JP,IP,NP) = BC(3,JP,IP,NP) - BSTR(3)
+
+                  ELSEIF (KODE(JP,IP,NP) .EQ. 11 .OR. 
+     &                    KODE(JP,IP,NP) .EQ. 12) THEN
+                      ! strike & dip stress, normal displ. fixed b.c.s
+                      BC(1,JP,IP,NP) = BC(1,JP,IP,NP) - BSTR(1)
+                      BC(2,JP,IP,NP) = BC(2,JP,IP,NP) - BSTR(2)
+
+                  ELSEIF (KODE(JP,IP,NP) .EQ. 13) THEN
+                      BC(1,JP,IP,NP) = BC(1,JP,IP,NP) - BSTR(1)
+
+                  ELSEIF (KODE(JP,IP,NP) .EQ. 14) THEN
+                      BC(2,JP,IP,NP) = BC(2,JP,IP,NP) - BSTR(2)
+
+                  ELSEIF (KODE(JP,IP,NP) .EQ. 15) THEN
+                      ! added by A.JANIN
+                      BC(3,JP,IP,NP) = BC(3,JP,IP,NP) - BSTR(3)
+
+                  ENDIF
+
+                  DO J = 1, 3
+                      IBC = IBC + 1
+                      ! Save all init b.c.s into last column of XMATRIX      
+                      XMATRIX(IBC,NUMEP1) = BC(J,JP,IP,NP)
+
+                  ENDDO
+
+              ENDDO
+          ENDDO
+
+      ENDDO
+
+      ! Update stress condition on each dislocation (in local coordinate system of the plane)
+      ! A.JANIN 25.02.2026
+      DO L=1, NPLANE
+          IBC = 3*(L-1)
+          IF (i_fcode(L) .EQ. 0) THEN
+              ! NOT a frictional element:
+              SDRIVER(L,1) = XMATRIX(IBC+1,NUMEP1) ! tau_strike(L)
+              SDRIVER(L,2) = XMATRIX(IBC+2,NUMEP1) ! tau_dip(L)
+              SDRIVER(L,3) = XMATRIX(IBC+3,NUMEP1) ! sigma_n(L)
+          ! For frictional element SDRIVER is managed in FRICTIONALDISLOC directly
+          ENDIF
+      ENDDO
+
+      ! If all boundary conditions are fixed rel. displ. return
+      IF (FIXED.LT.0) THEN
+          CALL update_DVEC()
+          RETURN
+      ENDIF
+
+      ! SHRINK: (1) update XMATRIX coefficients if some dislocations are a source of motion
+      !         (2) remove columns and rows from influence coefficient matrix that correspond
+      !             to element/components with fixed displacement discontinuities
+      
+      IF (FIXED.GT.0) THEN
+          ! If frictional patches, call FRICTIONALDISLOC inside SHRINK, after the
+          ! update XMATRIX coefficients if some dislocations are a source of motion
+          CALL SHRINK(NUME,MAXB1,MAXB2,NPLANE,KODE,0)
+          CALL GET_FIXED(KODE, FIXED, MAXB1, MAXB2, NPLANE)
+          ! If all boundary conditions are fixed rel. displ. return: no inversion needed, just return
+          IF (FIXED.LT.0) THEN
+              ! index of column containing boundary conditions
+              NUM_Ds=NUME+1
+              NUM_Ds_SAVED = NUM_Ds ! keep track of NUM_Ds outside
+              CALL update_DVEC()
+              RETURN
+          ELSE
+          ENDIF
       ELSE
-	DO 23 I=1,3
-23	BSTR(I)=0.
-      ENDIF
-		
-
-C *** loop over IP,JP sub-elements of plane NP ***
-      DO 20 JP=1,NBX1(NP)
-      DO 20 IP=1,NBX2(NP)
-		
-      IF(KODE(JP,IP,NP).EQ.2) THEN
-C	3 stress b.c.s
-	DO 2 J=1,3
-2	BC(J,JP,IP,NP)=BC(J,JP,IP,NP)-BSTR(J)
-      ELSEIF(KODE(JP,IP,NP).EQ.3) THEN
-C	strike-shear & normal stress, dip displ. b.c.s
-        BC(1,JP,IP,NP)=BC(1,JP,IP,NP)-BSTR(1)
-	BC(3,JP,IP,NP)=BC(3,JP,IP,NP)-BSTR(3)
-      ELSEIF(KODE(JP,IP,NP).EQ.4) THEN
-C	dip-shear & normal stress, strike displ. b.c.s
-	BC(2,JP,IP,NP)=BC(2,JP,IP,NP)-BSTR(2)
-	BC(3,JP,IP,NP)=BC(3,JP,IP,NP)-BSTR(3)
-      ELSEIF(KODE(JP,IP,NP).EQ.5) THEN
-C	strike & dip-shear stresses, normal displ. b.c.s
-	BC(2,JP,IP,NP)=BC(2,JP,IP,NP)-BSTR(2)
-	BC(1,JP,IP,NP)=BC(1,JP,IP,NP)-BSTR(1)
-	  ELSEIF(KODE(JP,IP,NP).EQ.6) THEN
-C	strike & dip-shear displ, normal stress. b.c.s  added by A.JANIN
-	BC(3,JP,IP,NP)=BC(3,JP,IP,NP)-BSTR(3)
-      ELSEIF(KODE(JP,IP,NP).EQ.11.OR.KODE(JP,IP,NP).EQ.12) THEN
-C	strike & dip stress, normal displ. fixed b.c.s
-	BC(1,JP,IP,NP)=BC(1,JP,IP,NP)-BSTR(1)
-	BC(2,JP,IP,NP)=BC(2,JP,IP,NP)-BSTR(2)
-      ELSEIF(KODE(JP,IP,NP).EQ.13) THEN
-	BC(1,JP,IP,NP)=BC(1,JP,IP,NP)-BSTR(1)
-      ELSEIF(KODE(JP,IP,NP).EQ.14) THEN
-	BC(2,JP,IP,NP)=BC(2,JP,IP,NP)-BSTR(2)
-C   Added by A.JANIN
-	  ELSEIF(KODE(JP,IP,NP).EQ.15) THEN
-	BC(3,JP,IP,NP)=BC(3,JP,IP,NP)-BSTR(3)
+          CALL FRICTIONALDISLOC(NUME,NPLANE,KODE)
+          CALL GET_FIXED(KODE, FIXED, MAXB1, MAXB2, NPLANE)
+          ! If all boundary conditions are fixed rel. displ. return: no inversion needed, just return
+          IF (FIXED.LT.0) THEN
+              ! index of column containing boundary conditions
+              NUM_Ds=NUME+1
+              NUM_Ds_SAVED = NUM_Ds ! keep track of NUM_Ds outside
+              CALL update_DVEC()
+              RETURN
+          ENDIF
+          IF (FIXED.GT.0) THEN
+              ! FIXED is modified (.GE. 1): call SHRINK (step 2 only) to adapt XMATRIX
+              CALL SHRINK(NUME,MAXB1,MAXB2,NPLANE,KODE,2)
+          ENDIF
       ENDIF
 
-      DO 20 J=1,3
-        IBC=IBC+1
-20	XMATRIX(IBC,NUMEP1)=BC(J,JP,IP,NP)	   		
+      CALL GET_FIXED(KODE, FIXED, MAXB1, MAXB2, NPLANE) ! normally, FIXED wil not change here
+      ! index of column containing boundary conditions
+      NUM_Ds=NUME+1
+      NUM_Ds_SAVED = NUM_Ds ! keep track of NUM_Ds outside
 
-C       - If all boundary conditions are fixed rel. displ. return
-	IF(FIXED.LT.0) RETURN
-	   
-C - Remove columns and rows from influence coefficient matrix that correspond
-C     to element/components with fixed displacement discontinuities
- 	IF(FIXED.GT.0) CALL SHRINK(NUME,MAXB1,MAXB2,NPLANE,KODE)
-	   
-C       index of column containing boundary conditions
- 	NUM_Ds=NUME+1
-	  
-C - Invert XMATRIX to solve for unknown relative displacement discontinuities
-	WRITE(*,'(/,A,2(I5,A))') ' STARTING INVERSION OF ',NUME,
-     1	  ' BY ',NUME,' MATRIX - PLEASE BE PATIENT!'
-        CALL INVERT(NUME)
-	
-	print*, ''
-	WRITE(*,'(A)') ' INVERSION DONE!'
+      ! Invert XMATRIX to solve for unknown relative displacement discontinuities
+      WRITE(*,'(/,A,2(I5,A))') ' STARTING INVERSION OF ',NUME,
+     1      ' BY ',NUME,' MATRIX - PLEASE BE PATIENT!'
+      CALL INVERT(NUME)
+      ! Before INVERT(), the last row of XMATRIX contained the vector stresses S
+      ! (last column) at the center of each disloc and the coefficents matrix A
+      ! INVERT() do: U = A^{-1} \dot S to compute the displacement U from S and A
+      ! and replace S by U in XMATRIX.
 
-C	no fixed rel. displ. boundary conditions
-        IF(FIXED.EQ.0) RETURN
+      PRINT*, ''
+      WRITE(*,'(A)') ' INVERSION DONE!'
 
-C - Add in any fixed relative displacements that were specified as 
-C   boundary conditions (and removed in SHRINK).
-	IBC=1
-C       *** loop over all planes ***
-        DO 30 NP=1,NPLANE
+      ! no fixed rel. displ. boundary conditions (else, we need to restore XMATRIX before returning)
+      IF (FIXED .EQ. 0) THEN
+          ! index of column containing boundary conditions
+          NUM_Ds=NUME+1
+          NUM_Ds_SAVED = NUM_Ds ! keep track of NUM_Ds outside
+          CALL update_DVEC()
+          RETURN
+      ENDIF
+
+      ! Add in any fixed relative displacements that were specified as 
+      ! boundary conditions (and removed in SHRINK).
+
+      WRITE(*,*)
+      WRITE(*,*) 'RESTORE ANY FIXED RELATIVE DISPL. REMOVED BY SHRINK'
+
+      IBC = 1
+
+      ! *** loop over all planes ***
+      DO NP = 1, NPLANE
 		  
-C       *** loop over IP,JP sub-elements of plane NP ***
-        DO 30 JP=1,NBX1(NP)
-        DO 30 IP=1,NBX2(NP)
+          ! *** loop over IP,JP sub-elements of plane NP ***
+          DO JP = 1, NBX1(NP)
+              DO IP = 1, NBX2(NP)
 
- 	IF(KODE(JP,IP,NP).LE.6) GOTO 30
-C	there are no fixed relative displacement boundary conditions
+                  IF (KODE(JP,IP,NP).GT.7) THEN
+                  ! There are fixed relative displacement boundary conditions on a non-frictional element
+                  ! Condition changed by A.JANIN:
+                  !    - from .GT.6 to .GT.7 because new b.c. added
+                  !    - exclude the frictional dislocations: displacements treated separately
 
-	IF(KODE(JP,IP,NP).EQ.10) THEN
-C		three fixed displacements - make room for 3 displacements
-C		start shift at element/component IBC
-		DO 31 J=IBC,NUME
-		JJ=NUME-J+IBC
-C		shift down 3			 
-		JJP=JJ+3	
-31		XMATRIX(JJP,NUM_Ds)=XMATRIX(JJ,NUM_Ds)
-		DO 32 J=1,3
-		JJ=IBC+J-1
-32              XMATRIX(JJ,NUM_Ds)=BC(J,JP,IP,NP)
-		NUME=NUME+3
+                      IF (KODE(JP,IP,NP) .EQ. 10) THEN
+                      ! three fixed displacements - make room for 3 displacements
+                      ! start shift at element/component IBC
 
-	 ELSEIF(KODE(JP,IP,NP).EQ.11.OR.KODE(JP,IP,NP).EQ.12) THEN
-C		fixed normal displacement only - make room for 1 displacement
-C		start shift at element/component IBC+2
-		DO 33 J=IBC+2,NUME
-		JJ=NUME-J+IBC+2  			
-C		shift down 1
-		JJP=JJ+1
-33		XMATRIX(JJP,NUM_Ds)=XMATRIX(JJ,NUM_Ds)
-        XMATRIX(IBC+2,NUM_Ds)=BC(3,JP,IP,NP)
-		NUME=NUME+1
- 			
-	 ELSEIF(KODE(JP,IP,NP).EQ.13) THEN
-C	    fixed dip and normal displacement - make room for 2 displacements
-C		start shift at element/component IBC+1
-		DO 34 J=IBC+1,NUME
-		JJ=NUME-J+IBC+1			
-C		shift down 2
-		JJP=JJ+2
-34		XMATRIX(JJP,NUM_Ds)   = XMATRIX(JJ,NUM_Ds)
-        XMATRIX(IBC+1,NUM_Ds) = BC(2,JP,IP,NP)
-        XMATRIX(IBC+2,NUM_Ds) = BC(3,JP,IP,NP)
-		NUME=NUME+2
+                          DO J = IBC, NUME
+                              JJ  = NUME - J + IBC
+                              !   shift down 3
+                              JJP = JJ + 3
+                              XMATRIX(JJP,NUM_Ds) = XMATRIX(JJ,NUM_Ds)
+                          ENDDO
 
-	 ELSEIF(KODE(JP,IP,NP).EQ.14) THEN
-C		fixed strike and normal displacement - make room 
-C       for 2 displacements
-C		start shift at element/component IBC+1
-		DO 35 J=IBC+1,NUME
-		JJ=NUME-J+IBC+1
-C		shift down 2
-		JJP=JJ+2
-35		XMATRIX(JJP,NUM_Ds)   = XMATRIX(JJ,NUM_Ds)
-        XMATRIX(IBC+1,NUM_Ds) = XMATRIX(IBC,NUM_Ds)
-		XMATRIX(IBC,NUM_Ds)   = BC(1,JP,IP,NP)
-        XMATRIX(IBC+2,NUM_Ds) = BC(3,JP,IP,NP)
-		NUME=NUME+2
-	
-	  ELSEIF(KODE(JP,IP,NP).EQ.15) THEN
-C	    fixed strike and dip displacement Added by A.JANIN
-C		start shift at element/component IBC+1
-		DO 37 J=IBC+1,NUME
-		JJ=NUME-J+IBC+1
-C		shift down 2
-		JJP=JJ+2
-37		XMATRIX(JJP,NUM_Ds)   = XMATRIX(JJ,NUM_Ds)
-        XMATRIX(IBC+2,NUM_Ds) = XMATRIX(IBC,NUM_Ds)
-		XMATRIX(IBC,NUM_Ds)   = BC(1,JP,IP,NP)
-		XMATRIX(IBC+1,NUM_Ds) = BC(2,JP,IP,NP)
-		NUME=NUME+2
- 
-	ENDIF
-C	index of next element
-30	IBC=IBC+3
+                          IF (i_fcode(NP) .EQ. 0) THEN
+                          ! condition (i_fcode(NP) .EQ. 0) added by A.JANIN 04.03.2026 to shift down
+                          ! see above) but not udpate frictional patches, done separetly, below.
+                              DO J = 1, 3
+                                  JJ = IBC + J - 1
+                                  XMATRIX(JJ,NUM_Ds) = BC(J,JP,IP,NP)
+                              ENDDO
+                          ELSEIF (i_fcode(NP) .GT. 0) THEN
+                          ! for patches that are frictional and end up having KODE = 10: LOCKED patches
+                              DO J = 1, 3
+                                  JJ = IBC + J - 1
+                                  XMATRIX(JJ,NUM_Ds) = 0.       ! Ds = Dd = Dn = 0
+                              ENDDO
+                          ENDIF
 
-	return
-	end
+                          NUME = NUME + 3
+
+                      ELSEIF (KODE(JP,IP,NP) .EQ. 11 .OR.
+     &                        KODE(JP,IP,NP) .EQ. 12) THEN
+                      ! fixed normal displacement only - make room for 1 displacement
+                      ! start shift at element/component IBC+2
+
+                          DO J = IBC+2, NUME
+                              JJ  = NUME - J + IBC + 2
+                              !   shift down 1
+                              JJP = JJ + 1
+                              XMATRIX(JJP,NUM_Ds) = XMATRIX(JJ,NUM_Ds)
+                          ENDDO
+
+                          IF (i_fcode(NP) .EQ. 0) THEN
+                          ! condition (i_fcode(NP) .EQ. 0) added by A.JANIN 04.03.2026 to shift down
+                          ! see above) but not udpate frictional patches, done separetly, below.
+                              XMATRIX(IBC+2,NUM_Ds) = BC(3,JP,IP,NP)
+                          ELSEIF (i_fcode(NP) .GT. 0) THEN
+                            ! for patches that are frictional and end up having KODE = 12: SLIDING patches
+                              XMATRIX(IBC+2,NUM_Ds) = 0.         ! Dn = 0
+                          ENDIF
+
+                          NUME = NUME + 1
+
+                      ELSEIF (KODE(JP,IP,NP) .EQ. 13) THEN
+                      ! fixed dip and normal displacement - make room for 2 displacements
+                      ! start shift at element/component IBC+1
+
+                          DO J = IBC+1, NUME
+                              JJ  = NUME - J + IBC + 1
+                              !   shift down 2
+                              JJP = JJ + 2
+                              XMATRIX(JJP,NUM_Ds) = XMATRIX(JJ,NUM_Ds)
+                          ENDDO
+
+                          XMATRIX(IBC+1,NUM_Ds) = BC(2,JP,IP,NP)
+                          XMATRIX(IBC+2,NUM_Ds) = BC(3,JP,IP,NP)
+                          NUME = NUME + 2
+
+                      ELSEIF (KODE(JP,IP,NP) .EQ. 14) THEN
+                      ! fixed strike and normal displacement - make room for 2 displacements
+                      ! start shift at element/component IBC+1
+
+                          DO J = IBC+1, NUME
+                              JJ  = NUME - J + IBC + 1
+                              !   shift down 2
+                              JJP = JJ + 2
+                              XMATRIX(JJP,NUM_Ds) = XMATRIX(JJ,NUM_Ds)
+                          ENDDO
+
+                          XMATRIX(IBC+1,NUM_Ds) = XMATRIX(IBC,NUM_Ds)
+                          XMATRIX(IBC,NUM_Ds)   = BC(1,JP,IP,NP)
+                          XMATRIX(IBC+2,NUM_Ds) = BC(3,JP,IP,NP)
+                          NUME = NUME + 2
+
+                      ELSEIF (KODE(JP,IP,NP) .EQ. 15) THEN
+                      ! fixed strike and dip displacement Added by A.JANIN
+                      ! start shift at element/component IBC+1
+
+                          DO J = IBC+1, NUME
+                              JJ  = NUME - J + IBC + 1
+                              ! shift down 2
+                              JJP = JJ + 2
+                              XMATRIX(JJP,NUM_Ds) = XMATRIX(JJ,NUM_Ds)
+                          ENDDO
+
+                          XMATRIX(IBC+2,NUM_Ds) = XMATRIX(IBC,NUM_Ds)
+                          XMATRIX(IBC,NUM_Ds)   = BC(1,JP,IP,NP)
+                          XMATRIX(IBC+1,NUM_Ds) = BC(2,JP,IP,NP)
+                          NUME = NUME + 2
+
+                      ENDIF
+
+                  ENDIF
+
+                  ! index of next element
+                  IBC = IBC + 3
+
+              ENDDO
+          ENDDO
+
+      ENDDO
+      CALL update_DVEC()
+      RETURN
+      END
+
+
+      subroutine GET_FIXED(KODE,FIXED,MAXB1,MAXB2,NPLANE)
+      ! *************************************************
+      ! Compute the value of FIXED according to KODE
+      !
+      ! FIXED = -1 if all elements have fixed rel. displ.
+      !       =  0 if no elements have fixed rel. displ.
+      !       =  1 if some but not all elements have fixed rel. displ.
+      ! *************************************************
+
+      use global_arrays
+      implicit none
+      integer, intent(out) :: FIXED
+      integer :: FIXED_I
+      integer :: KODE,MAXB1,MAXB2,NPLANE
+      DIMENSION KODE(MAXB1,MAXB2,NPLANE)
+
+      FIXED_I = FIXED   ! save for verbose output
+      IF (MINVAL(KODE) == 10 .AND. MAXVAL(KODE) == 10) THEN
+          FIXED = -1
+      ELSEIF (ANY(KODE > 10)) THEN
+          FIXED = 1
+      ELSE
+          FIXED = 0
+      ENDIF
+
+      !IF (debug) THEN
+      !    WRITE(*,*) ''
+      !    WRITE(*,*) ' [DEBUG] (determine fixed)'
+      !    WRITE(*,*) 'KODE:', KODE
+      !    WRITE(*,*) 'FIXED (IN)', FIXED_I
+      !    WRITE(*,*) 'FIXED (OUT)', FIXED
+      !ENDIF
+  
+      end subroutine GET_FIXED
+
+
+      SUBROUTINE FRICTIONALDISLOC(N, NPLANE, KODE)
+      ! *************************************************
+      ! XMATRIX(IBC+1,NUMEP1) ! tau_strike(L) ext loading
+      ! XMATRIX(IBC+2,NUMEP1) ! tau_dip(L) ext loading
+      ! XMATRIX(IBC+3,NUMEP1) ! sigma_n(L) ext loading
+      ! *************************************************
+      use global_arrays
+      use global_inputs
+
+      IMPLICIT NONE
+
+      integer(4) :: K, L, M, N, IBC, JBC
+      integer(4) :: NUMEP1, NPLANE
+      integer(4) :: CORRSIGN_DISP, CORRSIGN_GRFL
+      integer(4), intent(inout) :: KODE(1,1,NPLANE)
+      real(4) :: DSE, TAU, TAUC, NORM
+      real(4) :: TAUS_EXT, TAUD_EXT, SIGN_EXT
+      real(4) :: TAUS_DPL, TAUD_DPL, SIGN_DPL
+      real(4) :: SIGN_GRAVFLD
+      real(4) :: TAUS, TAUD, SIGN
+
+      WRITE(*,*)
+      WRITE(*,*) 'RESOLVE FRICTION ON FRICTIONAL ELEMENTS:'
+
+      ! Skip if no frictional patches
+      IF (.NOT. any_frictional) THEN
+          WRITE(*,*) '  -> NO FRICTIONAL ELEMENT: SKIP'
+          RETURN
+      ENDIF
+
+      ! Get the displacement vector (corrected from the imposed relative displacement)
+      CALL update_DVEC2(i_kode)
+
+      WRITE(*,*) 'PLANE-ID,  (TAU_S,  TAU_D,  SIGMA_N),     ',
+     &             '      TAU          TAUC,       MOTION'
+
+      NUMEP1 = N+1
+
+      ! *** loop over all planes ***
+      DO L=1, NPLANE
+
+          ! Index on XMATRIX of the first element (-1) of the triplet of b.c.s. for the element L
+          IBC = 3*(L-1)
+
+          IF (i_fcode(L) .GT. 0) THEN
+          ! Frictional element: no need of a condition on KODE because KODE = 2 is garantee for frictional patches
+
+              ! External stresses
+              IF (element_iter_fstatus(L).EQ.-1) THEN
+                  ! The element is frictional but it's slip condition are unknown: tau_ext = tau_BG + tau_others
+                  TAUS_EXT = XMATRIX(IBC+1,NUMEP1)
+                  TAUD_EXT = XMATRIX(IBC+2,NUMEP1)
+                  SIGN_EXT = XMATRIX(IBC+3,NUMEP1)
+              ELSEIF (element_iter_fstatus(L).EQ.0 .OR.
+     &                element_iter_fstatus(L).EQ.1) THEN
+                  ! The element is frictional and slip has been already computed and stresses balanced with the stored stresses
+                  TAUS_EXT = SSTORED(L,1)
+                  TAUD_EXT = SSTORED(L,2)
+                  SIGN_EXT = SSTORED(L,3)
+              ELSE
+                  WRITE(*,*) ' *** ERROR ***'
+                  WRITE(*,*) 'INVALID VALUE', element_iter_fstatus(L),
+     &                       'FOR THE VARIABLE element_iter_fstatus'
+                  WRITE(*,*) '-- PROGRAM STOPS'
+                  STOP
+              ENDIF
+
+              ! Evaluate the gravity and fluid effects on sigma_n
+              SIGN_GRAVFLD = (i_rhoLitho(L)-i_rhoFluid(L))*
+     &                       9.80665*ZCE(L)*1000.
+
+              ! Compute the induced stresses due to the resolved slip on the other dislocations
+              TAUS_DPL = 0
+              TAUD_DPL = 0
+              SIGN_DPL = 0
+              DO K=1, NPLANE
+                  JBC = 3*(K-1)
+                  DO M=1, 3
+                      ! Use DVEC2 to avoid counting twice driving element (KODE>=10)
+                      TAUS_DPL =TAUS_DPL+AMATRIX(IBC+1,JBC+M)*DVEC2(K,M)
+                      TAUD_DPL =TAUD_DPL+AMATRIX(IBC+2,JBC+M)*DVEC2(K,M)
+                      SIGN_DPL =SIGN_DPL+AMATRIX(IBC+3,JBC+M)*DVEC2(K,M)
+                  ENDDO
+              ENDDO
+
+              ! prepare the slip (if need to be added)
+              IF (element_iter_fstatus(L).EQ.1) THEN
+                  CORRSIGN_DISP = 0   ! 
+                  CORRSIGN_GRFL = 0   ! already counted
+              ELSEIF (element_iter_fstatus(L).EQ.0) THEN
+                  CORRSIGN_DISP = 1   ! need to be added
+                  CORRSIGN_GRFL = 0   ! already counted
+              ELSEIF (element_iter_fstatus(L).EQ.-1) THEN
+                  CORRSIGN_DISP = 0   ! unknown
+                  CORRSIGN_GRFL = -1  ! need to be added (-1 because ZCE <0)
+              ENDIF
+
+              IF (debug) THEN
+                  WRITE(*,*) ' [DEBUG] (contribution of Gravity-Fluid)'
+                  WRITE(*,*) '       ->', CORRSIGN_GRFL, SIGN_GRAVFLD
+              ENDIF
+
+              IF (debug) THEN
+200               FORMAT(A9,1X,I2,1X,ES12.4,1X,ES12.4,1X,ES12.4)
+                  WRITE(*,*) ' [DEBUG] (contribution of slips)'
+                  WRITE(*,200) '       ->', CORRSIGN_DISP, TAUS_DPL,
+     &                         TAUD_DPL, SIGN_DPL
+              ENDIF
+
+              ! Build the final stresses, take into account (or not) the slip
+              TAUS = TAUS_EXT + CORRSIGN_DISP*TAUS_DPL
+              TAUD = TAUD_EXT + CORRSIGN_DISP*TAUD_DPL
+              SIGN = SIGN_EXT + CORRSIGN_DISP*SIGN_DPL + 
+     &                          CORRSIGN_GRFL*SIGN_GRAVFLD
+
+              ! Use the final stresses evaluate the failure condition 
+              TAU  = SQRT(TAUS**2 + TAUD**2)
+              TAUC = i_disfric(L) * ABS(SIGN) + i_cohes(L)
+              DSE = TAU - TAUC
+
+100           FORMAT(I4,1X,A1,1X,ES12.4,1X,ES12.4,1X,ES12.4,1X,A1,
+     1               1X,ES12.4,1X,ES12.4,3X,A6)
+
+              IF (DSE .LE. 0) THEN
+
+                  WRITE(*,100) L, '(', TAUS, TAUD, SIGN,
+     &                ')', TAU, TAUC, 'LOCKED'
+
+                  ! frictionally locked:
+                  element_iter_fstatus(L) = 0
+                  IF (element_fstatus(L).LE.0) THEN
+                      ! update only if unknown or already locked, not if the element slided during a previous iteration
+                      element_fstatus(L) = 0
+                  ENDIF
+                  ! stored stress
+                  SSTORED(L,1) = TAUS
+                  SSTORED(L,2) = TAUD
+                  SSTORED(L,3) = SIGN
+                  ! switch to KODE 10 (0,0,0): locked patch
+                  KODE(1,1,L) = 10
+                  XMATRIX(IBC+1,NUMEP1) = 0.   ! Ds
+                  XMATRIX(IBC+2,NUMEP1) = 0.   ! Dd
+                  XMATRIX(IBC+3,NUMEP1) = 0.   ! Dn
+                  ! update SDRIVER (convention: add 0 if locked)
+                  SDRIVER(L,1) = SDRIVER(L,1) + 0.
+                  SDRIVER(L,2) = SDRIVER(L,2) + 0.
+                  SDRIVER(L,3) = SDRIVER(L,3) + 0.
+
+              ELSE
+                  
+                  WRITE(*,100) L, '(', TAUS, TAUD, SIGN,
+     &                ')', TAU, TAUC, 'SLIDES'
+
+                  ! sliding:
+                  element_iter_fstatus(L) = 1
+                  element_fstatus(L) = 1        ! update anyway to "sliding" if slides once
+                  ! switch to KODE 12 (tau_s', tau_d', 0): no tensile opening
+                  KODE(1,1,L) = 12
+                  XMATRIX(IBC+3,NUMEP1) = 0.  ! Dn
+
+                  ! define the amplitude of the stress drop: NORM
+                  IF (i_fcode(L) .EQ. 1) THEN
+                      NORM = DSE * i_sdrop(L)
+                  ELSEIF (i_fcode(L) .EQ. 2) THEN
+                      NORM = TAU * i_sdrop(L)
+                  ELSEIF (i_fcode(L) .EQ. 3) THEN
+                      NORM = DSE+TAUC*i_sdrop(L)
+                  ELSEIF (i_fcode(L) .EQ. 4) THEN
+                      NORM = DSE+i_sdrop(L)
+                  ELSEIF (i_fcode(L) .EQ. 5) THEN
+                      NORM = i_sdrop(L)
+                  ENDIF
+                  NORM = MIN(NORM, TAU) ! avoid dropping more than TAU
+
+                  ! apply the stress drop
+                  XMATRIX(IBC+1,NUMEP1) = (-1.)*TAUS/TAU*NORM ! tau_s
+                  XMATRIX(IBC+2,NUMEP1) = (-1.)*TAUD/TAU*NORM ! tau_d
+                  XMATRIX(IBC+3,NUMEP1) = 0.0 ! sigma_n cancelled
+
+                  ! update SDRIVER (if slides at this iteration, add the driving stress to the one of the previous iterations)
+                  SDRIVER(L,1) = SDRIVER(L,1) + XMATRIX(IBC+1,NUMEP1)
+                  SDRIVER(L,2) = SDRIVER(L,2) + XMATRIX(IBC+2,NUMEP1)
+                  SDRIVER(L,3) = SDRIVER(L,3) + 0
+                  ! stored stress
+                  SSTORED(L,1) = TAUS + XMATRIX(IBC+1,NUMEP1) ! tau_s_final
+                  SSTORED(L,2) = TAUD + XMATRIX(IBC+2,NUMEP1) ! tau_d_final
+                  SSTORED(L,3) = SIGN + 0                     ! sig_n_final
+              ENDIF
+          ENDIF
+      ENDDO
+
+      END
 
 
       SUBROUTINE INVERT(N)
-C******************************************************************************
-C   Invert NxN matrix.  Routine overwrites boundary condition vector.
-C	A = influence coefficient matrix (XMATRIX)
-C   A(1,N+1) = boundary condition vector (XMATRIX(1,N+1))
-C   X = temporary solution vector
-C******************************************************************************
-      IMPLICIT REAL*8 (A-H,O-Z)
-      INCLUDE 'sizes.inc'
-      REAL*4 A
-      COMMON/SOLN/A(MAX3_ELEM,MAX3_ELEM+1)
-      DIMENSION X(MAX3_ELEM)
+      ! ******************************************************************************
+      ! Invert NxN matrix.  Routine overwrites boundary condition vector.
+      ! A = influence coefficient matrix (XMATRIX)
+      ! A(1,N+1) = boundary condition vector (XMATRIX(1,N+1))
+      ! X = temporary solution vector
+      ! Rewritten in Fortran 90+ by A.JANIN 24.02.2026, +add debug option
+      ! ******************************************************************************
+	  use global_arrays
+	  IMPLICIT NONE
 
-C      open(unit=6,file='imatrix',status='unknown')
-C      DO 5 K=1,N
-C      DO 5 L=1,N
-C    5 write(6,*) A(K,L)
-C      close(6)
-C      print *, 'Finished Writing Matrix' 
+	  real(4), allocatable :: X(:)
+	  integer(4) :: NB, N
+  	  integer(4) :: I, J, L, JJ
+	  real(4) :: XM, SUM
+
+	  allocate(X(3*ndis_glob))
+
+      if (debug) then
+          ! -> Export the coeff matrix XMATRIX
+          !    before the inversion (with stress b.c.s)
+          call write_xmatrix('imatrix')
+      endif
       
-      NB=N-1
-      DO 20 J=1,NB
-      L=J+1
-      DO 20 JJ=L,N
-      XM=A(JJ,J)/A(J,J)
-      DO 10 I=J+1,N
-   10 A(JJ,I)=A(JJ,I)-A(J,I)*XM
-   20 A(JJ,N+1)=A(JJ,N+1)-A(J,N+1)*XM
+      NB = N - 1
 
-      X(N)=A(N,N+1)/A(N,N)
-      DO 40 J=1,NB
-      JJ=N-J
-      L=JJ+1
-      SUM=0.0
-      DO 30 I=L,N
-   30 SUM=SUM+A(JJ,I)*X(I)
-   40 X(JJ)=(A(JJ,N+1)-SUM)/A(JJ,JJ)
-      DO 50 I=1,N
-   50 A(I,N+1)=X(I)
+      ! Forward elimination (Triangularization)
+	  ! This transforms the matrix into an upper triangular matrix.
+	  ! standard Gaussian elimination without pivoting
+      do J = 1, NB
+          L = J + 1
+          do JJ = L, N
+              XM = XMATRIX(JJ, J) / XMATRIX(J, J)
+
+              do I = J + 1, N
+                  XMATRIX(JJ, I) = XMATRIX(JJ, I) - XMATRIX(J, I) * XM
+              end do
+
+              XMATRIX(JJ, N+1) = XMATRIX(JJ, N+1) - XMATRIX(J, N+1) * XM
+          end do
+      end do
+
+      ! Back substitution
+	  ! After elimination, the matrix is upper triangular:
+      X(N) = XMATRIX(N, N+1) / XMATRIX(N, N)
+
+      do J = 1, NB
+          JJ = N - J
+          L = JJ + 1
+          SUM = 0.0
+
+          do I = L, N
+              SUM = SUM + XMATRIX(JJ, I) * X(I)
+          end do
+
+          X(JJ) = (XMATRIX(JJ, N+1) - SUM) / XMATRIX(JJ, JJ)
+      end do
+
+      ! Copy solution back into last column
+      do I = 1, N
+          XMATRIX(I, N+1) = X(I)
+      end do
+
+      if (debug) then
+          ! -> Export the coeff matrix XMATRIX
+          !    after the inversion (with resolved displ b.c.s)
+          call write_xmatrix('omatrix')
+      endif
+
+      ! deallocate allocated memory to avoid memory leak in ipython terminal
+	  deallocate(X)
 
       RETURN
       END
 	  
-      SUBROUTINE SHRINK(NUME,MAXB1,MAXB2,NPLANE,KODE)
-C******************************************************************************
-C Subroutine to remove columns and rows from influence coefficient matrix,
-C XMATRIX(NUME,NUME), that correspond to element/components with fixed 
-C displacement discontinuities
-C   NUME is the total number of element/components in XMATRIX - this will
-C        be changed to reflect the reduced size of the matrix such that
-C        the returned XMATRIX(NUME,NUME) contains no zero rows.
-C******************************************************************************
-      INCLUDE 'sizes.inc'
 
-      REAL*4 XO,YO,ZO,C,S,DIP,CDIP,SDIP,BWX1,BWX2
-      INTEGER*4 NBX1,NBX2
-      COMMON/DEFS/XO(MAX_PLN),YO(MAX_PLN),ZO(MAX_PLN),
-     &		   C(MAX_PLN),S(MAX_PLN),DIP(MAX_PLN),
-     &             CDIP(MAX_PLN),SDIP(MAX_PLN),
-     &             BWX1(MAX_PLN),BWX2(MAX_PLN),
-     &		   NBX1(MAX_PLN),NBX2(MAX_PLN)
 
-      INTEGER*4 KODE
+      SUBROUTINE SHRINK(NUME,MAXB1,MAXB2,NPLANE,KODE,INTRUCTION)
+      !******************************************************************************
+      ! Subroutine to 
+      !    (1) update XMATRIX coefficients if some dislocations are a source of motion
+      !        (i.e. when kode>=10). Will take the condition on the driving dislocation
+      !        and transform it on stress condition on all the other dislocations!
+      !        and store in updating the last row of XMATRIX
+      !    (2) remove columns and rows from influence coefficient matrix,
+      !        XMATRIX(NUME,NUME), that correspond to element/components with fixed
+      !        displacement discontinuities
+      ! 
+      !   NUME is the total number of element/components in XMATRIX - this will
+      !        be changed to reflect the reduced size of the matrix such that
+      !        the returned XMATRIX(NUME,NUME) contains no zero rows.
+      !
+      ! Rewritten in Fortran ~90+ by A.JANIN 25.02.2026
+      !******************************************************************************
+
+      USE global_arrays
+      use global_inputs
+      INTEGER(4) KODE, SIDE
+	  INTEGER(4) NUME, NUMEP1, L, IBC
+      INTEGER(4) INTRUCTION
       DIMENSION KODE(MAXB1,MAXB2,NPLANE)
-      
-      REAL*4 XMATRIX
-      COMMON/SOLN/XMATRIX(MAX3_ELEM,MAX3_ELEM+1)
 
       WRITE(*,'(/,A)') ' SHRINKING INFLUENCE COEF. MATRIX'
-	 
-C     index of column containing boundary conditions
-      NUMEP1=NUME+1
-	  
-C *** Correct boundary conditions for fixed relative displacements;
-C     This is equivalent to subtracting the column of XMATRIX corresponding
-C     to the element/component with fixed relative displacement
-C     from the boundary condition vector.
-C	  Recall that the row corresponding to the element/component
-C     with fixed relative displacement boundary conditions will 
-C     contain all zeros.
-C     Thus even though the fixed elements are included in the loops,
-C     'correcting' them does not effect the value of that fixed relative
-C     displacement boundary condition.
-      IBC=0
-	  
-C     *** loop over all planes ***
-      DO 30 NP=1,NPLANE
-		
-C       *** loop over IP,JP sub-elements of plane NP ***
-        DO 30 JP=1,NBX1(NP)
-        DO 30 IP=1,NBX2(NP)
-		 
-        IF(KODE(JP,IP,NP).LE.6) GOTO 30
-C	there are no fixed displacement boundary conditions
 
-	IF(KODE(JP,IP,NP).EQ.10) THEN
-C	correct all other boundary conditions for all three fixed displacements
-		DO 32 J=1,3
-C               index of element/component with fixed relative displacement
-		IBCJ=J+IBC
-C	        correct all boundary conditions
-		DO 32 K=1,NUME
-32		XMATRIX(K,NUMEP1)=XMATRIX(K,NUMEP1)-
-     &           XMATRIX(K,IBCJ)*XMATRIX(IBCJ,NUMEP1)
+      ! index of column containing boundary conditions
+      NUMEP1 = NUME + 1
 
-	 ELSEIF(KODE(JP,IP,NP).EQ.11.OR.KODE(JP,IP,NP).EQ.12) THEN
-C	 correct all other boundary conditions for fixed normal displacement only
-		IBC3=IBC+3
-	 	DO 33 K=1,NUME
-33		XMATRIX(K,NUMEP1)=XMATRIX(K,NUMEP1)-
+      IF (INTRUCTION.EQ.0 .OR. INTRUCTION.EQ.1) THEN
+
+      ! *** Correct boundary conditions for fixed relative displacements;
+      ! This is equivalent to subtracting the column of XMATRIX corresponding
+      ! to the element/component with fixed relative displacement
+      ! from the boundary condition vector.
+      !
+      ! Recall that the row corresponding to the element/component
+      ! with fixed relative displacement boundary conditions will
+      ! contain all zeros.
+      ! Thus even though the fixed elements are included in the loops,
+      ! 'correcting' them does not effect the value of that fixed relative
+      ! displacement boundary condition.
+
+      IBC = 0
+
+      ! *** loop over all planes ***
+      DO NP = 1, NPLANE
+
+            ! *** loop over IP,JP sub-elements of plane NP ***
+            DO JP = 1, NBX1(NP)
+                  DO IP = 1, NBX2(NP)
+
+                        IF (KODE(JP,IP,NP) .GT. 7) THEN
+                        ! condition changed by A.JANIN from .GT.6 to .GT.7 because new b.c. added
+
+                              IF (KODE(JP,IP,NP) .EQ. 10) THEN
+                                    ! correct all other boundary conditions for all three fixed displacements
+                                    DO J = 1, 3
+                                          ! index of element/component with fixed relative displacement
+                                          IBCJ = J + IBC
+                                          ! correct all boundary conditions
+                                          DO K = 1, NUME
+                                              IF (i_fcode(NP).GT.0) THEN
+                                                SIDE = -1
+                                              ELSE
+                                                SIDE = 1
+                                              ENDIF
+        XMATRIX(K,NUMEP1)=XMATRIX(K,NUMEP1)-
+     &           SIDE*XMATRIX(K,IBCJ)*XMATRIX(IBCJ,NUMEP1)
+                                          ENDDO
+                                    ENDDO
+
+                              ELSEIF (KODE(JP,IP,NP) .EQ. 11 .OR. 
+     &                                KODE(JP,IP,NP) .EQ. 12) THEN
+                                    ! correct all other boundary conditions for fixed normal displacement only
+                                    IBC3 = IBC + 3
+                                    DO K = 1, NUME
+        XMATRIX(K,NUMEP1)=XMATRIX(K,NUMEP1)-
      &             XMATRIX(K,IBC3)*XMATRIX(IBC3,NUMEP1)
-			
-	 ELSEIF(KODE(JP,IP,NP).EQ.13) THEN
-C	 correct all other boundary conditions for fixed dip and normal displacement
-		IBC2=IBC+2
-		IBC3=IBC+3
-		DO 34 K=1,NUME
-		XMATRIX(K,NUMEP1)=XMATRIX(K,NUMEP1)-
+                                    ENDDO
+
+                              ELSEIF (KODE(JP,IP,NP) .EQ. 13) THEN
+                                    ! correct all other boundary conditions for fixed dip and normal displacement
+                                    IBC2 = IBC + 2
+                                    IBC3 = IBC + 3
+                                    DO K = 1, NUME
+        XMATRIX(K,NUMEP1)=XMATRIX(K,NUMEP1)-
      &                        XMATRIX(K,IBC2)*XMATRIX(IBC2,NUMEP1)
-34		XMATRIX(K,NUMEP1)=XMATRIX(K,NUMEP1)-
+        XMATRIX(K,NUMEP1)=XMATRIX(K,NUMEP1)-
      &                        XMATRIX(K,IBC3)*XMATRIX(IBC3,NUMEP1)
+                                    ENDDO
 
-	 ELSEIF(KODE(JP,IP,NP).EQ.14) THEN
-C	 correct all other boundary conditions for fixed strike and normal displacement
-		IBC1=IBC+1
-		IBC3=IBC+3
-		DO 35 K=1,NUME
-		XMATRIX(K,NUMEP1)=XMATRIX(K,NUMEP1)-
+                              ELSEIF (KODE(JP,IP,NP) .EQ. 14) THEN
+                                    ! correct all other boundary conditions for fixed strike and normal displacement
+                                    IBC1 = IBC + 1
+                                    IBC3 = IBC + 3
+                                    DO K = 1, NUME
+        XMATRIX(K,NUMEP1)=XMATRIX(K,NUMEP1)-
      &                XMATRIX(K,IBC1)*XMATRIX(IBC1,NUMEP1)
-35		XMATRIX(K,NUMEP1)=XMATRIX(K,NUMEP1)-
+        XMATRIX(K,NUMEP1)=XMATRIX(K,NUMEP1)-
      &                XMATRIX(K,IBC3)*XMATRIX(IBC3,NUMEP1)
+                                       ENDDO
 
-	 ELSEIF(KODE(JP,IP,NP).EQ.15) THEN
-C	 Added by A.JANIN correct all other boundary conditions for fixed strike and dip displacement
-		IBC1=IBC+1
-		IBC2=IBC+2
-		DO K=1,NUME
-		XMATRIX(K,NUMEP1)=XMATRIX(K,NUMEP1)-
+                              ELSEIF (KODE(JP,IP,NP) .EQ. 15) THEN
+                                    ! Added by A.JANIN correct all other boundary conditions for fixed strike and dip displacement
+                                    IBC1 = IBC + 1
+                                    IBC2 = IBC + 2
+                                    DO K = 1, NUME
+        XMATRIX(K,NUMEP1)=XMATRIX(K,NUMEP1)-
      &                XMATRIX(K,IBC1)*XMATRIX(IBC1,NUMEP1)
-	    XMATRIX(K,NUMEP1)=XMATRIX(K,NUMEP1)-
+        XMATRIX(K,NUMEP1)=XMATRIX(K,NUMEP1)-
      &                XMATRIX(K,IBC2)*XMATRIX(IBC2,NUMEP1)
-	    ENDDO
+                                    ENDDO
+                              ENDIF
 
-	 ENDIF
-C        index of next sub-element
-30	 IBC=IBC+3
+                        ENDIF
+
+                        ! index of next sub-element
+                        IBC = IBC + 3
+
+                  ENDDO
+            ENDDO
+      ENDDO
+
+      ! Update stress condition on each dislocation (in local coordinate system of the plane)
+      ! A.JANIN 25.02.2026
+      DO L=1, NPLANE
+          IBC = 3*(L-1)
+          IF (KODE(1,1,L) .LT. 7) THEN
+          ! no fixed relative displacements
+              SDRIVER(L,1) = XMATRIX(IBC+1,NUMEP1) ! tau_strike(L)
+              SDRIVER(L,2) = XMATRIX(IBC+2,NUMEP1) ! tau_dip(L)
+              SDRIVER(L,3) = XMATRIX(IBC+3,NUMEP1) ! sigma_n(L)
+          ELSEIF (KODE(1,1,L) .EQ. 10) THEN
+          ! fixed relative displacements imposed (assumed no stress)
+              SDRIVER(L,1) = 0.
+              SDRIVER(L,2) = 0.
+              SDRIVER(L,3) = 0.
+          ELSEIF (KODE(1,1,L) .EQ. 11 .OR. KODE(1,1,L) .EQ. 12) THEN
+              SDRIVER(L,1) = XMATRIX(IBC+1,NUMEP1)
+              SDRIVER(L,2) = XMATRIX(IBC+2,NUMEP1)
+              SDRIVER(L,3) = 0.
+          ELSEIF (KODE(1,1,L) .EQ. 13) THEN
+              SDRIVER(L,1) = XMATRIX(IBC+1,NUMEP1)
+              SDRIVER(L,2) = 0.
+              SDRIVER(L,3) = 0.
+          ELSEIF (KODE(1,1,L) .EQ. 14) THEN
+              SDRIVER(L,1) = 0.
+              SDRIVER(L,2) = XMATRIX(IBC+2,NUMEP1)
+              SDRIVER(L,3) = 0.
+          ELSEIF (KODE(1,1,L) .EQ. 15) THEN
+              SDRIVER(L,1) = 0.
+              SDRIVER(L,2) = 0.
+              SDRIVER(L,3) = XMATRIX(IBC+3,NUMEP1)
+		  ENDIF
+      ENDDO
 
 
-C *** Remove rows and columns of XMATRIX corresponding to elements/components 
-C     with fixed relative displacement
-	 IBC=1	
-	  
-C     *** loop over all planes ***
-      DO 40 NP=1,NPLANE
-				  
-C       *** loop over IP,JP blocks of plane NP ***
-        DO 40 JP=1,NBX1(NP)
-        DO 40 IP=1,NBX2(NP)
-		 
- 	IF(KODE(JP,IP,NP).LE.6) THEN
-C	nothing is fixed
-C		index of next element/comp to work on
-		IBC=IBC+3
-		GOTO 40
-	ENDIF
-		 
-	IF(KODE(JP,IP,NP).EQ.10) THEN
-C	fixed strike,dip,normal displ.;  row/column index is for 1st comp. of
-C	this element - remove row & column IBC 3 times
-		CALL ROWCOL(IBC,NUME,NUMEP1)
-		CALL ROWCOL(IBC,NUME,NUMEP1)
-		CALL ROWCOL(IBC,NUME,NUMEP1)
-	ELSEIF(KODE(JP,IP,NP).EQ.11.OR.KODE(JP,IP,NP).EQ.12) THEN
-C	fixed normal displacement only;  row/column index is for 3rd comp. of
-C       this element - row/column index is for 3rd comp. of this element
-		IBC=IBC+2		
-C               remove row & column IBC
-		CALL ROWCOL(IBC,NUME,NUMEP1)	
-	ELSEIF(KODE(JP,IP,NP).EQ.13) THEN
-C	fixed dip and normal displacement
-C       row/column index is for 2nd comp. of this element
-		IBC=IBC+1
-C	        remove row & column IBC 2 times
-		CALL ROWCOL(IBC,NUME,NUMEP1)
-		CALL ROWCOL(IBC,NUME,NUMEP1)
-	ELSEIF(KODE(JP,IP,NP).EQ.14) THEN
-C	fixed strike and normal displ.;  row/column index is for 1st comp. of 
-C       this element -	remove row & column IBC 
-		CALL ROWCOL(IBC,NUME,NUMEP1)
-C	        skip 1 row/column index to 3rd comp. of this element
-		IBC=IBC+1
-C	        remove row & column IBC 
-		CALL ROWCOL(IBC,NUME,NUMEP1)
-	ELSEIF(KODE(JP,IP,NP).EQ.15) THEN
-C	Added by A.JANIN: fixed strike and dip displ.
-		CALL ROWCOL(IBC,NUME,NUMEP1)
-		CALL ROWCOL(IBC,NUME,NUMEP1)
-		IBC=IBC+1
-	ENDIF
-		
-40	CONTINUE
+      ! CALL FOR FRICTION
+      CALL FRICTIONALDISLOC(NUME, NPLANE, KODE)
 
-        return
-        end
-              
-			  
+      ! --- If all boundary conditions are fixed rel. displ. return
+      IF (MINVAL(KODE) == 10 .AND. MAXVAL(KODE) == 10) THEN
+          RETURN
+      ENDIF
+
+      ENDIF
+
+      ! *** Remove rows and columns of XMATRIX corresponding to elements/components
+      !     with fixed relative displacement
+
+      IF (INTRUCTION.EQ.0 .OR. INTRUCTION.EQ.2) THEN
+      IBC = 1
+
+      ! *** loop over all planes ***
+      DO NP = 1, NPLANE
+
+            ! *** loop over IP,JP blocks of plane NP ***
+            DO JP = 1, NBX1(NP)
+                  DO IP = 1, NBX2(NP)
+
+                        IF (KODE(JP,IP,NP) .LE. 7) THEN
+                              ! nothing is fixed
+                              ! index of next element/comp to work on
+                              IBC = IBC + 3
+
+                        ELSEIF (KODE(JP,IP,NP) .EQ. 10) THEN
+                              ! fixed strike,dip,normal displ.; row/column index is for 1st comp.
+                              ! this element - remove row & column IBC 3 times
+                              CALL ROWCOL(IBC,NUME,NUMEP1)
+                              CALL ROWCOL(IBC,NUME,NUMEP1)
+                              CALL ROWCOL(IBC,NUME,NUMEP1)
+
+                        ELSEIF (KODE(JP,IP,NP) .EQ. 11 .OR.
+     &                          KODE(JP,IP,NP) .EQ. 12) THEN
+                              ! fixed normal displacement only; row/column index is for 3rd comp.
+                              IBC = IBC + 2
+                              CALL ROWCOL(IBC,NUME,NUMEP1)
+
+                        ELSEIF (KODE(JP,IP,NP) .EQ. 13) THEN
+                              ! fixed dip and normal displacement
+                              ! row/column index is for 2nd comp.
+                              IBC = IBC + 1
+                              CALL ROWCOL(IBC,NUME,NUMEP1)
+                              CALL ROWCOL(IBC,NUME,NUMEP1)
+
+                        ELSEIF (KODE(JP,IP,NP) .EQ. 14) THEN
+                              ! fixed strike and normal displacement
+                              CALL ROWCOL(IBC,NUME,NUMEP1)
+                              IBC = IBC + 1
+                              CALL ROWCOL(IBC,NUME,NUMEP1)
+
+                        ELSEIF (KODE(JP,IP,NP) .EQ. 15) THEN
+                              ! Added by A.JANIN: fixed strike and dip displacement
+                              CALL ROWCOL(IBC,NUME,NUMEP1)
+                              CALL ROWCOL(IBC,NUME,NUMEP1)
+                              IBC = IBC + 1
+                        ENDIF
+
+                  ENDDO
+            ENDDO
+      ENDDO
+
+      ENDIF
+
+      RETURN
+      END
+
+
       SUBROUTINE DCD3D(X,Y,Z,DEPTH,DIP,                        
      &              AL1,AL2,AW1,AW2,IGRAD,IRET) 
 C******************************************************************************
@@ -1353,7 +1958,7 @@ C     convert from displacement gradients to stresses
 
       IF(IGRAD.LE.0) RETURN
 
-      DO 2 J=1,3	  
+      DO 2 J=1,3
  	  DGRAD(1,1,J)=UXX(J)*1.E-5
 	  DGRAD(1,2,J)=UXY(J)*1.E-5
 	  DGRAD(1,3,J)=UXZ(J)*1.E-5
@@ -1373,10 +1978,7 @@ C     convert from displacement gradients to stresses
 C******************************************************************************
 C Transform coef matrices in STR,DSPL from local NS coords to planar NP coords 
 C******************************************************************************
-      INCLUDE 'sizes.inc'
-
-      REAL*4 UG2P,SG2P
-      COMMON/TRANS/UG2P(3,3,MAX_PLN),SG2P(3,6,MAX_PLN)  
+      use global_arrays
       
       REAL*4 UCOEF,SCOEF
       COMMON/COEFS/ UCOEF(3,3),SCOEF(6,3)
@@ -1386,7 +1988,7 @@ C******************************************************************************
 
 C---- Transform STR,DSPL to global coords, store in SCOEF(6,3),UCOEF(3,3)      
       IGRAD=0
-      CALL COEF2GLOB(NS,IGRAD)		
+      CALL COEF2GLOB(NS,IGRAD)
 
 C---- Transform normal components of SCOEF(6,3),and UCOEF(3,3) to planar NP
 C     coordinates, store back in STR(3,3), DSPL(3,3)
@@ -1412,15 +2014,7 @@ C     coordinates, store back in STR(3,3), DSPL(3,3)
 C******************************************************************************
 C transform coef matrices from local NS coords to global coords 
 C******************************************************************************
-      INCLUDE 'sizes.inc'
-
-	  REAL*4 XO,YO,ZO,C,S,DIP,CDIP,SDIP,BWX1,BWX2
-      INTEGER*4 NBX1,NBX2     
-      COMMON/DEFS/XO(MAX_PLN),YO(MAX_PLN),ZO(MAX_PLN),
-     &		   C(MAX_PLN),S(MAX_PLN),DIP(MAX_PLN),
-     &             CDIP(MAX_PLN),SDIP(MAX_PLN),
-     &             BWX1(MAX_PLN),BWX2(MAX_PLN),
-     &		   NBX1(MAX_PLN),NBX2(MAX_PLN)
+      use global_arrays
 
       REAL*4 UCOEF,SCOEF
       COMMON/COEFS/ UCOEF(3,3),SCOEF(6,3)
@@ -1441,7 +2035,7 @@ C     cosine(strike)**2
 C     sine(strike)**2	
       SSQ=S(NS)*S(NS)
 C     cosine(strike)*sine(strike)
-      SC=S(NS)*C(NS)	
+      SC=S(NS)*C(NS)
 C     2*cosine(strike)*sine(strike)	
       SC2=2.*SC	
 C     cosine(strike)**2-sine(strike)**2	
@@ -1496,15 +2090,12 @@ C******************************************************************************
 C  Subroutine to make up the influence coefficient matrix for the given
 C  boundary conditions.
 C******************************************************************************
-      INCLUDE 'sizes.inc'
+      use global_arrays
 	  
       INTEGER*4 KODNP,NUMED,NUMEBC
 	  	  
       REAL*4 DSPL,STR
       COMMON/TEMPS/DSPL(3,3),STR(6,3)
-
-      REAL*4 XMATRIX
-      COMMON/SOLN/XMATRIX(MAX3_ELEM,MAX3_ELEM+1)
 
       IF(KODNP.EQ.1) THEN
 C	3 displacement b.c.s
@@ -1602,12 +2193,9 @@ C  to elements with fixed displacement discontinuities.  Corresponding
 C  b.c. (containing the fixed relative displacement discontinuities) are removed
 C  from the b.c. vector.
 C******************************************************************************
-      INCLUDE 'sizes.inc'
+      use global_arrays
 
       INTEGER*4 ICOL,NUME,NUMEP1
-	  
-      REAL*4 XMATRIX
-      COMMON/SOLN/XMATRIX(MAX3_ELEM,MAX3_ELEM+1)
 
 C *** Remove a column
 C     loop over columns
@@ -1624,7 +2212,7 @@ C     loop over rows
 C         shift row J+1 to row J;using NUME instead of  
 C         NUMEP1 accounts for the column just removed
 	  DO 4 I=1,NUME
-4	  XMATRIX(J,I)=XMATRIX(JJ,I) 
+4	  XMATRIX(J,I)=XMATRIX(JJ,I)
 
 C *** Reduce the array dimension by 1
       NUME=NUME-1
@@ -1635,24 +2223,15 @@ C *** Reduce the array dimension by 1
 
 
       SUBROUTINE CALCPO(X,Y,Z,NPLANE,NUM_Ds,IRET)
-C******************************************************************************
-C Subroutine to calculate deformation at a point X,Y,Z in global coordinates
-C******************************************************************************
-      INCLUDE 'sizes.inc'
+      ! **************************************************************************
+      ! Subroutine to calculate deformation at a point X,Y,Z in global coordinates
+      ! Rewritten in Fortran 90+ by A.JANIN 27.02.2026
+      ! **************************************************************************
+      
+      use global_arrays
 	  
-      INTEGER*4 	NPLANE
-      REAL*8		X,Y
-	  
-      REAL*4 XO,YO,ZO,C,S,DIP,CDIP,SDIP,BWX1,BWX2
-      INTEGER*4 NBX1,NBX2     
-      COMMON/DEFS/XO(MAX_PLN),YO(MAX_PLN),ZO(MAX_PLN),
-     &		   C(MAX_PLN),S(MAX_PLN),DIP(MAX_PLN),
-     &             CDIP(MAX_PLN),SDIP(MAX_PLN),
-     &             BWX1(MAX_PLN),BWX2(MAX_PLN),
-     &		   NBX1(MAX_PLN),NBX2(MAX_PLN)
-            
-      REAL*4 XMATRIX
-      COMMON/SOLN/XMATRIX(MAX3_ELEM,MAX3_ELEM+1)
+      INTEGER*4     NPLANE
+      REAL*8        X,Y
 
       REAL*4 UCOEF,SCOEF
       COMMON/COEFS/ UCOEF(3,3),SCOEF(6,3)
@@ -1670,145 +2249,168 @@ C******************************************************************************
       REAL*4 BSTRESS
       COMMON/BKGRND/BSTRESS(9),BFLAG
 
-C  Common blocks for output options
-       logical o_elem,o_stress,o_strain,o_dgrad,o_rbr,
-     & o_orient,o_disp,o_inv,xyz_out,o_fail,o_proj
-       character*24 sufx
-       common/outputs/sufx,o_elem,o_stress,o_strain,o_dgrad,
-     &  o_rbr,o_orient,o_disp,o_inv,xyz_out,o_fail,o_proj
-
-C     flag for displacement gradient calculation
+      ! Flag for displacement gradient calculation
       INTEGER*4 IGRAD
 
       IGRAD=1
 
-C  Solution is the sum of deformation due to all elements; this is stored
-C  in arrays DSPL(3,1) (displacements) and STR(6,1) (stresses)
+      ! Solution is the sum of deformation due to all elements; this is stored
+      ! in arrays DSPL(3,1) (displacements) and STR(6,1) (stresses)
 
-C   - Initialize solution vectors  	
-      DO 1 I=1,3
-	  DO 8 J=1,3
-8	  dgrten(I,J)=0.
-1     EWE(I)=0.
-      DO 7 I=1,6
-7     STRESS(I)=0.
+      ! Initialize solution vectors
+      DO I=1,3
+         DO J=1,3
+            dgrten(I,J)=0.
+         ENDDO
+         EWE(I)=0.
+      ENDDO
 
-C For each point X,Y,Z	
-		    
+      DO I=1,6
+         STRESS(I)=0.
+      ENDDO
+
+      ! For each point X,Y,Z
+
       NUMD3=0
-C     *** loop over NS planes ***	
-           DO 170 NS=1,NPLANE
 
-C 	   - Define point in local NS coords
-	   XNP=S(NS)*(X-XO(NS))+C(NS)*(Y-YO(NS))
-	   YNP=-C(NS)*(X-XO(NS))+S(NS)*(Y-YO(NS))
-		   
-C	   *** loop over IS,JS sub-elements of plane NS ***
-	   DO 115 JS=1,NBX1(NS)
-C          - sub-element length range along dip		 		 
-     	   AL1=FLOAT(JS-1)*BWX1(NS)
-	   AL2=AL1+BWX1(NS)
-	       
-  	   	DO 115 IS=1,NBX2(NS)
+      ! *** loop over NS planes ***
+      DO NS=1,NPLANE
 
-C               - sub-element width range along strike
-    	   	AW1=FLOAT(IS-1)*BWX2(NS)
-		AW2=AW1+BWX2(NS)
-					  
-C	        - Calculate 6 stress and 3 displacement influence coefs in NS coords
-C		Put these in arrays STR(6,3),DSPL(3,3)
-		
-		CALL DCD3D(XNP,YNP,Z,ZO(NS),DIP(NS),                           
-     &           AL1,AL2,AW1,AW2,IGRAD,IRET)
-	 	IF(IRET.NE.0) THEN
-		  WRITE(*,*) 
-     &		  ' Singular Point in Calcpo; <x,y,z>=',XNP,YNP,Z
-                  do 118 i=1,6
-118               STRESS(I)=999999.  
-                  do 119 i=1,3
-                  EWE(i)=999999.
-                  do 119 j=1,3
-119               dgrten(j,i)=999999.
-	          RETURN
-		ENDIF
-          				
-C        	- Transform STR,DSPL,DGRAD to global coords, store in 
-C                 SCOEF(6,3),UCOEF(3,3),DGRAD 
-      	   	CALL COEF2GLOB(NS,IGRAD)
-				
-C		- Weight influence coefs by solved displacement discontinuities, Ds, 
-C		and add to solution	
-		DO 5 J=1,3
-		  DO 2 I=1,6
-2		  STRESS(I)=STRESS(I)+SCOEF(I,J)*XMATRIX(NUMD3+J,NUM_Ds)
+         ! Define point in local NS coords
+         XNP=S(NS)*(X-XO(NS))+C(NS)*(Y-YO(NS))
+         YNP=-C(NS)*(X-XO(NS))+S(NS)*(Y-YO(NS))
 
-		IF(o_disp) THEN
-		  DO 4 I=1,3
-4  		  EWE(I)=EWE(I)+UCOEF(I,J)*XMATRIX(NUMD3+J,NUM_Ds)
-		ENDIF
-				 
-		IF(o_dgrad.or.o_rbr.or.o_orient) THEN
-		  DO 3 I=1,3
-		  DO 3 K=1,3
-3		  dgrten(K,I)=dgrten(K,I)+
-     1		    DGRAD(K,I,J)*XMATRIX(NUMD3+J,NUM_Ds)
-		ENDIF
+         ! *** loop over IS,JS sub-elements of plane NS ***
+         DO JS=1,NBX1(NS)
 
-5		CONTINUE
+            ! sub-element length range along dip
+            AL1=FLOAT(JS-1)*BWX1(NS)
+            AL2=AL1+BWX1(NS)
 
-C        	- increment displacement discontinuity count
-		NUMD3=NUMD3+3
-		   				
-115        CONTINUE
-C	   *** end of loop over blocks of plane NS ***
-	
-170	  CONTINUE
-C         *** end of loop over NS planes ***
+            DO IS=1,NBX2(NS)
 
-C     *** add in effects of background deformation
-	  IF(BFLAG.NE.'N') THEN
-	    DO 6 I=1,6
-6	    STRESS(I)=STRESS(I)+BSTRESS(I)
+               ! sub-element width range along strike
+               AW1=FLOAT(IS-1)*BWX2(NS)
+               AW2=AW1+BWX2(NS)
 
- 	    IF(o_dgrad.or.o_rbr.or.o_orient) THEN
+               ! Calculate 6 stress and 3 displacement influence coefs in NS coords
+               ! Put these in arrays STR(6,3),DSPL(3,3)
 
-	  	sum=(1.0+V)/E
+               CALL DCD3D(XNP,YNP,Z,ZO(NS),DIP(NS),
+     &                    AL1,AL2,AW1,AW2,IGRAD,IRET)
 
-		dgrten(1,2)=dgrten(1,2)+
-     &               (BSTRESS(1)-V*(BSTRESS(4)+BSTRESS(6)))/E
-		dgrten(1,2)=
-     &               dgrten(1,2)+sum*BSTRESS(2)-BSTRESS(9)
-		dgrten(1,3)=
-     &               dgrten(1,3)+sum*BSTRESS(3)+BSTRESS(8)
+               IF(IRET.NE.0) THEN
+                  WRITE(*,*)
+     &            ' Singular Point in Calcpo; <x,y,z>=',XNP,YNP,Z
 
-		dgrten(2,1)=
-     &               dgrten(2,1)+sum*BSTRESS(2)+BSTRESS(9)
-		dgrten(2,2)=dgrten(2,2)+
-     &              (BSTRESS(4)-V*(BSTRESS(1)+BSTRESS(6)))/E
-		dgrten(2,3)= 
-     &               dgrten(2,3)+sum*BSTRESS(5)-BSTRESS(7) 
+                  DO I=1,6
+                     STRESS(I)=999999.
+                  ENDDO
 
-		dgrten(3,1)=
-     &                dgrten(3,1)+sum*BSTRESS(3)-BSTRESS(8)
-		dgrten(3,2)=
-     &                dgrten(3,2)+sum*BSTRESS(5)+BSTRESS(7)
-		dgrten(3,3)=dgrten(3,3)+
-     &               (BSTRESS(6)-V*(BSTRESS(1)+BSTRESS(4)))/E
- 	    ENDIF
-		
-C	  *** account for rigid body rotations
-	    IF(BFLAG.eq.'D'.and.o_disp) THEN
-		UX=EWE(3)*BSTRESS(8)-EWE(2)*BSTRESS(9)
-		UY=EWE(1)*BSTRESS(9)-EWE(3)*BSTRESS(7)
-		EWE(3)=EWE(3)+(EWE(2)*BSTRESS(7)-EWE(1)*BSTRESS(8))
-		EWE(1)=UX+EWE(1)
-		EWE(2)=UY+EWE(2)
-	    ENDIF
-		
-	ENDIF
-	  
-	RETURN
-	END
+                  DO I=1,3
+                     EWE(I)=999999.
+                  ENDDO
+
+                  DO I=1,3
+                     DO J=1,3
+                        dgrten(J,I)=999999.
+                     ENDDO
+                  ENDDO
+
+                  RETURN
+               ENDIF
+
+               ! Transform STR,DSPL,DGRAD to global coords, store in
+               ! SCOEF(6,3),UCOEF(3,3),DGRAD
+               CALL COEF2GLOB(NS,IGRAD)
+
+               ! Weight influence coefs by solved displacement
+               ! discontinuities (Ds) and add to solution
+               DO J=1,3
+
+                  DO I=1,6
+                     STRESS(I)=STRESS(I)
+     &                    +SCOEF(I,J)*XMATRIX(NUMD3+J,NUM_Ds)
+                  ENDDO
+
+                  DO I=1,3
+                     EWE(I)=EWE(I)
+     &                  +UCOEF(I,J)*XMATRIX(NUMD3+J,NUM_Ds)
+                  ENDDO
+
+                  DO I=1,3
+                     DO K=1,3
+                        dgrten(K,I)=dgrten(K,I)
+     &                       +DGRAD(K,I,J)
+     &                       *XMATRIX(NUMD3+J,NUM_Ds)
+                     ENDDO
+                  ENDDO
+
+               ENDDO
+
+               ! increment displacement discontinuity count
+               NUMD3=NUMD3+3
+
+            ENDDO
+         ENDDO
+         ! *** end of loop over blocks of plane NS ***
+
+      ENDDO
+      ! *** end of loop over NS planes ***
+
+      ! *** add in effects of background deformation
+      IF(BFLAG.NE.'N') THEN
+
+         DO I=1,6
+            STRESS(I)=STRESS(I)+BSTRESS(I)
+         ENDDO
+
+         sum=(1.0+V)/E
+
+         dgrten(1,2)=dgrten(1,2)
+     &        +(BSTRESS(1)-V*(BSTRESS(4)+BSTRESS(6)))/E
+         dgrten(1,2)=dgrten(1,2)
+     &        +sum*BSTRESS(2)-BSTRESS(9)
+
+         dgrten(1,3)=dgrten(1,3)
+     &        +sum*BSTRESS(3)+BSTRESS(8)
+
+         dgrten(2,1)=dgrten(2,1)
+     &        +sum*BSTRESS(2)+BSTRESS(9)
+
+         dgrten(2,2)=dgrten(2,2)
+     &        +(BSTRESS(4)-V*(BSTRESS(1)+BSTRESS(6)))/E
+
+         dgrten(2,3)=dgrten(2,3)
+     &        +sum*BSTRESS(5)-BSTRESS(7)
+
+         dgrten(3,1)=dgrten(3,1)
+     &        +sum*BSTRESS(3)-BSTRESS(8)
+
+         dgrten(3,2)=dgrten(3,2)
+     &        +sum*BSTRESS(5)+BSTRESS(7)
+
+         dgrten(3,3)=dgrten(3,3)
+     &        +(BSTRESS(6)-V*(BSTRESS(1)+BSTRESS(4)))/E
+
+         ! *** account for rigid body rotations
+         IF(BFLAG.EQ.'D') THEN
+
+            UX=EWE(3)*BSTRESS(8)-EWE(2)*BSTRESS(9)
+            UY=EWE(1)*BSTRESS(9)-EWE(3)*BSTRESS(7)
+
+            EWE(3)=EWE(3)
+     &           +(EWE(2)*BSTRESS(7)-EWE(1)*BSTRESS(8))
+
+            EWE(1)=UX+EWE(1)
+            EWE(2)=UY+EWE(2)
+
+         ENDIF
+
+      ENDIF
+
+      RETURN
+      END
 
    	SUBROUTINE TOPLANE(SSTK,CSTK,SDIP,CDIP)
 C******************************************************************************
@@ -1826,13 +2428,6 @@ C******************************************************************************
 C ** Added dum to REAL*4 declaration
         REAL*4 E,dum
         COMMON/TEMPS/E(3,3),dum(6,3)
-
-C  Common blocks for output options
-       logical o_elem,o_stress,o_strain,o_dgrad,o_rbr,
-     & o_orient,o_disp,o_inv,xyz_out,o_fail,o_proj
-       character*24 sufx
-       common/outputs/sufx,o_elem,o_stress,o_strain,o_dgrad,
-     & o_rbr,o_orient,o_disp,o_inv,xyz_out,o_fail,o_proj
 		  
        S(1,1)=STRESS(1)  
        S(2,1)=STRESS(2)  
@@ -1899,7 +2494,6 @@ C
 	tmax=stress(3)*cos(tmaxa)+stress(5)*sin(tmaxa)
 C
 C
-      IF(o_dgrad.or.o_rbr.or.o_orient) THEN    
         DO 6 K=1,3
         DO 6 I=1,3
 	TSTR(I,K)=0.
@@ -1911,9 +2505,7 @@ C
 	dgrten(I,K)=0.
 	DO 7 J=1,3	
 7       dgrten(I,K)=dgrten(I,K)+TSTR(J,K)*ROT(I,J)
-      ENDIF
 
-      IF(o_disp) THEN
 	DO 4 K=1,3
 	U(K)=0.  
         DO 4 I=1,3
@@ -1921,7 +2513,6 @@ C
 	    
 	DO 5 I=1,3
 5	EWE(I)=U(I)
-      ENDIF
 	  
       RETURN
       END
@@ -1942,7 +2533,7 @@ C
 *	
 *********************************************************************
 *
-      include 'sizes.inc'
+C      include 'sizes.inc'
 	  
 C  ** Added declaration of tmax,tmaxo(2),tmaxa as real*4 on Aug. 29,2000
       real*4 stress,ewe,dgrten,pr,ym,FRICTION,tmax,tmaxo,tmaxa
@@ -1957,7 +2548,7 @@ C  ** Added declaration of tmax,tmaxo(2),tmaxa as real*4 on Aug. 29,2000
       common/temps/e(3,3),dum(6,3)
 
       rho=2650.
-c      g=9.78
+c     g=9.78
 C     angle of internal friction in radians
 C     corresponding to a coefficient of friction=0.6
       phi=0.540
@@ -1965,7 +2556,7 @@ C     corresponding to a coefficient of friction=0.6
 c     meanst=(abs(z)*1000.*g*rho)
       meanst=0.
 	  
-          s(1,1)=stress(1)+meanst
+      s(1,1)=stress(1)+meanst
 	  s(1,2)=stress(2)
 	  s(1,3)=stress(3)
 	  s(2,1)=stress(2)
@@ -1980,7 +2571,7 @@ c     meanst=(abs(z)*1000.*g*rho)
 	  dev1=max(p(1),p(2),p(3))
 	  dev3=min(p(1),p(2),p(3))
 	  
-	  critic=(dev1+dev3)/2.	  
+	  critic=(dev1+dev3)/2.
 
  	  volchg=e(1,1)+e(2,2)+e(3,3)
  
@@ -1998,9 +2589,9 @@ C	  and volume change).  See Ramsay, 1967, p.288.
  	  work=sinv1*sinv1-2.0*(sinv1+pr)*sinv2
 
 	  return
-	  end	
+	  end
 	  
-	  Subroutine Third_Results(ex,ey,ez,px,tx,py,ty,pz,tz)	
+	  Subroutine Third_Results(ex,ey,ez,px,tx,py,ty,pz,tz)
 ********************************************************************************
 *
 *	Third_Results finds the principal strains and their orientations with respect
@@ -2022,7 +2613,7 @@ C         Converts strain tensor to deformation	gradient tensor.
               DO 410 J=1,3
 C	      Note: this is not the same as the displacement gradient tensor.
 	      D(I,J)=E(I,J)
-	      IF(I.EQ.J) D(I,J)=E(I,J)+1.0	
+	      IF(I.EQ.J) D(I,J)=E(I,J)+1.0
  410	      CONTINUE
  400	  CONTINUE
 
