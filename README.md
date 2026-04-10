@@ -23,6 +23,7 @@ If you use **py3Ddef** in your research, we kindly ask that you cite the followi
 
 - [Introduction](#py3ddef)
 - [Install py3Ddef](#install-py3ddef)
+    - [Prerequisites](#0-prerequisites)
     - [Download](#1-download)
     - [Compilation with f2py and Meson](#2-compilation-with-f2py-and-meson)
     - [Linking](#3-linking)
@@ -56,6 +57,14 @@ In this section, we describe how to install **py3Ddef** from the source code ava
 
 > [!NOTE]
 > Although not detailed here, as a best practice we strongly recommend installing **py3Ddef** within a dedicated Python environment, for example using [conda](https://conda.io/projects/conda/en/latest/index.html).
+
+### 0. Prerequisites
+
+Great news: installing py3Ddef is straightforward! All you need is a working Python environment ([Python](https://www.anaconda.com/download), version 3.7 or higher), a Fortran compiler (we recommend [gfortran](https://fortran-lang.org/learn/os_setup/install_gfortran/)), and [pip](https://pip.pypa.io/en/stable/). That’s it! If you’d like to create a dedicated Python environment for **py3Ddef**, you can easily do so using [conda](https://conda.io/projects/conda/en/latest/index.html).
+
+> [!IMPORTANT]
+> A working Fortran compiler is essential. You can test yours using the provided [makefile](./src/makefile) in the [./src/](./src/) directory. If you have gfortran and want to test it, open a terminal in the py3Ddef-main/src directory (after [downloadinf](#1-download) the **py3Ddef** package; see the [next section](#1-download)) and run the command `make compile`. For other compilers, simply update the makefile accordingly and execute the same command: `make compile`, if you want to test them.
+
 
 ### 1. Download
 
@@ -335,7 +344,7 @@ $\rightsquigarrow$ [Back to the Table of Content](#table-of-contents)
 | Densities | consistent with the stresses |
 
 > [!TIP]
-> It is recommended to use Pa as unit of the Young's modulus so that it becomes the unit of all the stresses (input: like the in background stress, boundary conditions, and output: on the grid and on the dislocation), and densities become kg.m$^{-3}$.
+> It is recommended to use Pa as unit of the Young's modulus so that it becomes the unit of all the stresses (input: like the in background stress, boundary conditions, and output: on the grid and on the dislocation), and densities become kg.$\text{m}^{-3}$.
 
 
 $\rightsquigarrow$ [Back to the Table of Content](#table-of-contents)
